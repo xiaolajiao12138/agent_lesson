@@ -1,0 +1,22 @@
+{
+  "name": "phase01-basics",
+  "version": "1.0.0",
+  "description": "AI Agent 第一阶段：LLM 基础与 Prompt 工程实战",
+  "main": "01-hello-llm.ts",
+  "scripts": {
+    "hello": "tsx 01-hello-llm.ts",
+    "stream": "tsx 02-streaming.ts",
+    "structured": "tsx 03-structured-output.ts"
+  },
+  "keywords": ["ai", "agent", "llm", "prompt"],
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "openai": "^4.86.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
