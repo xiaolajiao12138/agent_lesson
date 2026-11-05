@@ -70,14 +70,15 @@ async def run_concurrent_tasks():
 
     # 模拟同时向两个不同模型厂商（例如同时查两个 Agent 节点）发起异步请求
     # asyncio.gather 严格等价于 JavaScript 中的 Promise.all([task1, task2])
-    task_openai = fetch_llm_response("OpenAI-GPT4o", 1.5)
-    task_deepseek = fetch_llm_response("DeepSeek-R1", 1.2)
+    task_openai = fetch_llm_response("OpenAI-GPT4o", 1.2)
+    task_deepseek = fetch_llm_response("DeepSeek-R1", 1.5)
 
     # 并发等待两个协程执行
     results = await asyncio.gather(task_openai, task_deepseek)
 
     total_cost_time = time.time() - start_time
     print(f"并发请求全部完成，总耗时仅需（取最大耗时）: {total_cost_time:.2f} 秒")
+    print(f"{results}")
     for res in results:
         print(f"返回数据快照: {res}")
 

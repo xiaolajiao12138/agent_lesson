@@ -41,14 +41,14 @@ def demo_exception_handling():
         print("解析成功:", data)
     except json.JSONDecodeError as err:
         # 精确捕获 JSON 解析错误
-        print(f"⚠️ [捕获到预期错误] 大模型返回了非法的 JSON 格式:\n   原因: {err}")
+        print(f"[捕获到预期错误] 大模型返回了非法的 JSON 格式:\n   原因: {err}")
     except Exception as err:
         # 兜底捕获其他所有异常
-        print(f"❌ [捕获到未知异常]: {err}")
+        print(f"[捕获到未知异常]: {err}")
     else:
-        print("✅ [无异常执行] JSON 数据验证完全合规！")
+        print("[无异常执行] JSON 数据验证完全合规！")
     finally:
-        print("🧹 [Finally 清理] 无论如何都会执行（常用于关闭数据库连接/重置 Loading 状态）")
+        print("[Finally 清理] 无论如何都会执行（常用于关闭数据库连接/重置 Loading 状态）")
 
 
 # ==============================================================================
@@ -57,7 +57,9 @@ def demo_exception_handling():
 def demo_file_io():
     print("\n=== 2. 文件读写与 with 语法糖 ===")
 
-    file_path = "test_agent_memory.txt"
+    # 获取当前 py 脚本所在的绝对目录，确保文件必定生成在当前 phase00-python-zero-basis 文件夹下
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(current_dir, "test_agent_memory.txt")
 
     # 传统不推荐的做法：
     # f = open(file_path, "w")
@@ -68,27 +70,32 @@ def demo_file_io():
     # 类似前端的自动资源释放：with 代码块执行完毕后，无论正常结束还是抛出异常，
     # Python 都会 100% 自动调用 f.close() 关闭文件！
     
-    # 1. 写入文件（"w" 覆盖写入，"a" 追加写入）
+    # 1. 覆盖写入（"w" 模式：如果文件已存在，会彻底清空后重新写）
     # encoding="utf-8" 极其重要，防止 Windows 中文乱码！
     with open(file_path, "w", encoding="utf-8") as f:
         f.write("# 智能体持久化记忆存储\n")
         f.write("用户偏好：喜欢使用 TypeScript 和 Next.js。\n")
         f.write("学习目标：2026 年转型 AI 智能体开发。\n")
-    print(f"1. 成功使用 with open 写入文件: {file_path}")
+    print(f"1. 成功使用 'w' 模式覆盖写入文件: {file_path}")
 
-    # 2. 读取文件（"r" 只读模式）
+    # 2. 追加写入（"a" 模式：保留旧内容，在文件末尾接着追加）
+    with open(file_path, "a", encoding="utf-8") as f:
+        f.write("追加记录：已完成 Python 异常捕获与文件操作学习！\n")
+    print(f"2. 成功使用 'a' 模式追加新行")
+
+    # 3. 读取文件（"r" 只读模式）
     with open(file_path, "r", encoding="utf-8") as f:
         # .read() 读取全部内容
         # .readlines() 按行读取返回列表
         content = f.read()
-    print(f"2. 成功读取文件内容:\n---\n{content.strip()}\n---")
+    print(f"3. 成功读取合并后的完整文件内容:\n---\n{content.strip()}\n---")
 
-    # 清理测试生成的临时文件
-    if os.path.exists(file_path):
+    # 【真实保留文件】：为了让你在左侧文件列表能亲眼点开查看，这里不删除文件
+    print(f"\n[真实文件已生成并保留]: {file_path}")
+    print("你可以直接在左侧文件列表中点击 'test_agent_memory.txt' 查看内容！")
+
+    if os.path.exists(file_path) :
         os.remove(file_path)
-        print(f"已清理临时测试文件: {file_path}")
-
-
 if __name__ == "__main__":
     demo_exception_handling()
     demo_file_io()
