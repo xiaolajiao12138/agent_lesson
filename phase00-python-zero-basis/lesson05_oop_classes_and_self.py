@@ -42,8 +42,8 @@ class BaseAgent:
 
     def log_action(self, action_name: str) -> None:
         """实例方法：第一个参数永远是 self，用于访问内部属性"""
-        print(f"[{self.name}] 正在执行动作: {action_name} (底层驱动模型: {self.model})")
-
+        print(f"[{self.name}] 正在执行111动作: {action_name} (底层驱动模型: {self.model})")
+        # 科研助手小智 正在执行动作 ：{action_name} 模型：deepseek_r1
     # 魔法方法 __str__：相当于 JS 对象的 .toString()
     # 当 print(agent) 时会自动调用该方法
     def __str__(self) -> str:
@@ -71,6 +71,9 @@ class ResearchAgent(BaseAgent):
         self.message_history.append(result)
         return result
 
+    def getname(self,name) : 
+        self.name = name
+        return name
     # 核心黑魔法：__call__
     # 在 Python 中，只要一个类实现了 __call__ 方法，它的实例就可以像函数一样被直接调用！
     # 例如：agent("帮我查资料") 等价于 agent.__call__("帮我查资料")
@@ -84,23 +87,24 @@ class ResearchAgent(BaseAgent):
 # ==============================================================================
 
 def demo_oop():
-    print("=== 1. 实例化与方法调用 ===")
+    # print("=== 1. 实例化与方法调用 ===")
     
     # 类似 JS: const agent = new ResearchAgent("科研助手小智", "Bing");
     # Python 实例化不需要 new 关键字，直接当作函数调用 类名(...)
     researcher = ResearchAgent(name="科研助手小智", search_engine="Bing", model="deepseek-r1")
-    
+    # print(f"{researcher}")
     # 调用继承与扩展的方法
     res1 = researcher.execute_search("Vue 与 React 渲染机制差异")
     print(f"返回结果: {res1}")
 
-    print("\n=== 2. 查看继承自父类的历史记录与 __str__ ===")
-    print(f"打印实例对象: {researcher}")
+    # print("\n=== 2. 查看继承自父类的历史记录与 __str__ ===")
+    # print(f"打印实例对象: {researcher}")
     print(f"访问内部属性: {researcher.message_history}")
 
-    print("\n=== 3. 体验 __call__ 魔法方法（把对象当函数执行） ===")
-    # 注意看：这里直接像函数一样调用了 researcher 这个对象！
+    # print("\n=== 3. 体验 __call__ 魔法方法（把对象当函数执行） ===")
+    # # 注意看：这里直接像函数一样调用了 researcher 这个对象！
     res2 = researcher("Next.js 15 Server Actions 最佳实践")
+    # 检索到next.js.....的最新技术文档共 3 篇
     print(f"通过 __call__ 调用的输出: {res2}")
     print(f"累计历史记录条数: {len(researcher.message_history)}")
 
