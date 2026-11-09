@@ -28,9 +28,23 @@ DAY 13 实战源码：脱离框架！纯原生手写 ReAct 智能体引擎
 
 import json
 import os
+import sys
 import asyncio
 from typing import List, Dict, Any, Callable
 from pydantic import BaseModel, Field
+
+# 动态引入项目根目录的通用配置
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+try:
+    from config import get_async_openai_client, DEFAULT_MODEL
+except ImportError:
+    from openai import AsyncOpenAI
+    def get_async_openai_client():
+        return AsyncOpenAI(
+            api_key=os.getenv("OPENAI_API_KEY", "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"),
+            base_url=os.getenv("OPENAI_BASE_URL", "https://sub2api.starysp.top/v1")
+        )
+    DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-6.1-sol")
 
 # ==============================================================================
 # 第一步：定义外部工具（Tools）入参模型
@@ -105,8 +119,8 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
 class NativeReActAgent:
     """纯手写原生 ReAct 智能体引擎"""
 
-    def __init__(self, model_name: str = "gpt-4o"):
-        self.model_name = model_name
+    def __init__(self, model_name: str = None):
+        self.model_name = model_name or DEFAULT_MODEL
         # 严谨的 System Prompt 指引大模型按步骤思考并决策工具调用
         self.system_prompt = (
             "你是一个高智商、讲求事实依据的 AI 智能体。\n"
@@ -123,8 +137,7 @@ class NativeReActAgent:
         维护一个 messages 会话上下文列表，在 while/for 循环中与大模型交替通信。
         max_turns 用于安全熔断，防止 Agent 陷入死循环耗尽 Token。
         """
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI()
+        client = get_async_openai_client()
 
         # 初始化会话历史记录
         messages: List[Dict[str, Any]] = [
@@ -220,16 +233,9 @@ async def simulate_demo():
 if __name__ == "__main__":
     test_question = "请帮我查一下杭州现在的气温，并利用计算器算出如果换算成华氏度是多少？公式：(摄氏度 * 9 / 5) + 32"
 
-    if not os.getenv("OPENAI_API_KEY"):
-        print("\n" + "=" * 60)
-        print("[提示] 检测到当前系统未设置 OPENAI_API_KEY 环境变量。")
-        print("为了让你彻底看懂 ReAct 的每一步流转，现启动离线模拟链路：")
-        print("=" * 60)
-        asyncio.run(simulate_demo())
-    else:
-        try:
-            agent = NativeReActAgent()
-            final_answer = asyncio.run(agent.execute_task(test_question))
-            print(f"\n最终交付结果:\n{final_answer}")
-        except Exception as e:
-            print(f"[执行异常]: {e}")
+    try:
+        agent = NativeReActAgent()
+        final_answer = asyncio.run(agent.execute_task(test_question))
+        print(f"\n最终交付结果:\n{final_answer}")
+    except Exception as e:
+        print(f"[执行异常]: {e}")

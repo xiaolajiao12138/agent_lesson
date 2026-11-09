@@ -5,7 +5,7 @@ DAY 07 实战源码：大模型强制结构化输出（Structured Outputs 与防
     大模型默认是生成纯文本的“文字接龙机器”。但在 Agent 开发中，下游往往是数据库或前端组件，
     我们需要模型 100% 返回合法、且严格符合 Schema 的 JSON。
     如果让大模型自由发挥，它常常会夹带 markdown 标记（如 ```json ... ```）或缺漏字段导致 JSON.parse 崩溃。
-    本文件演示现代大模型（OpenAI/Gemini/DeepSeek）的 Structured Outputs 特性。
+    本文件演示现代大模型的 Structured Outputs 特性。
 
 【核心技术原理】：
     1. Constrained Decoding（语法受限解码）：
@@ -22,8 +22,23 @@ DAY 07 实战源码：大模型强制结构化输出（Structured Outputs 与防
 
 import json
 import os
+import sys
 from typing import List, Optional
 from pydantic import BaseModel, Field
+
+# 动态引入项目根目录的通用配置
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+try:
+    from config import get_openai_client, DEFAULT_MODEL
+except ImportError:
+    # 兼容独立运行
+    from openai import OpenAI
+    def get_openai_client():
+        return OpenAI(
+            api_key=os.getenv("OPENAI_API_KEY", "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"),
+            base_url=os.getenv("OPENAI_BASE_URL", "https://sub2api.starysp.top/v1")
+        )
+    DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-6.1-sol")
 
 # ==============================================================================
 # 1. 定义我们期望从非结构化文本中精准抽取的契约结构 (Pydantic Schema)
@@ -57,16 +72,14 @@ def extract_structured_data(raw_user_bio: str) -> UserProfileExtract:
     使用 client.beta.chat.completions.parse 强制模型遵循 Pydantic Schema。
     模型返回的对象会被 SDK 自动反序列化为 UserProfileExtract 强类型实例。
     """
-    from openai import OpenAI
-    # 自动从当前操作系统的环境变量中读取 OPENAI_API_KEY
-    client = OpenAI()
+    client = get_openai_client()
 
     print(f"原始非结构化口语文本:\n---\n{raw_user_bio}\n---")
-    print("正在请求大模型进行信息结构化提炼（应用语法受限解码）...")
+    print(f"正在请求大模型 [{DEFAULT_MODEL}] 进行信息结构化提炼（应用语法受限解码）...")
 
     # 核心调用：使用 beta 命名空间下的 parse 方法
     completion = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06", # 必须使用支持 Structured Outputs 的特定模型版本
+        model=DEFAULT_MODEL,
         messages=[
             {
                 "role": "system",
@@ -98,38 +111,25 @@ if __name__ == "__main__":
         "希望今年内能转型成为一名优秀的 AI 智能体全栈工程师！"
     )
 
-    # 检查本地环境是否有 API KEY，没有则提供模拟展示，保证运行不崩溃
-    if not os.getenv("OPENAI_API_KEY"):
-        print("\n" + "=" * 60)
-        print("[提示] 检测到当前系统未设置 OPENAI_API_KEY 环境变量。")
-        print("为了让你直观看到执行效果，以下演示使用 Pydantic 模拟大模型成功抽取后的数据状态：")
-        print("=" * 60 + "\n")
-        
-        # 模拟模型输出结果
-        profile = UserProfileExtract(
-            user_name="小陈",
-            current_role="前端开发工程师",
-            skills=["React", "TypeScript", "Next.js", "Agent 开发", "LangGraph"],
-            years_of_experience=4,
-            is_interested_in_ai=True,
-            confidence_score=0.98
-        )
-    else:
-        try:
-            profile = extract_structured_data(mock_bio)
-        except Exception as e:
-            print(f"[调用异常]: {e}")
-            exit(1)
+    print("\n" + "=" * 60)
+    print("=== 大模型结构化输出抽取实战（真实 API 调用模式）===")
+    print("=" * 60)
 
-    # 打印强类型对象的字段值
-    print("[提取成功] 获得强类型 Pydantic 对象：")
-    print(f"姓名: {profile.user_name}")
-    print(f"当前岗位: {profile.current_role}")
-    print(f"技能清单: {profile.skills}")
-    print(f"从业年限: {profile.years_of_experience} 年")
-    print(f"是否对 AI 感兴趣: {'是' if profile.is_interested_in_ai else '否'}")
-    print(f"提取置信度: {profile.confidence_score * 100}%")
+    try:
+        profile = extract_structured_data(mock_bio)
 
-    # 导出为干净的标准 JSON，供前端页面或数据库存储
-    print("\n[序列化导出] 格式化输出供前端 Vue/React 直接渲染的 JSON:")
-    print(profile.model_dump_json(indent=2))
+        # 打印强类型对象的字段值
+        print("\n[提取成功] 获得强类型 Pydantic 对象：")
+        print(f"姓名: {profile.user_name}")
+        print(f"当前岗位: {profile.current_role}")
+        print(f"技能清单: {profile.skills}")
+        print(f"从业年限: {profile.years_of_experience} 年")
+        print(f"是否对 AI 感兴趣: {'是' if profile.is_interested_in_ai else '否'}")
+        print(f"提取置信度: {round(profile.confidence_score * 100, 1)}%")
+
+        # 导出为干净的标准 JSON，供前端页面或数据库存储
+        print("\n[序列化导出] 格式化输出供前端 Vue/React 直接渲染的 JSON:")
+        print(profile.model_dump_json(indent=2))
+
+    except Exception as e:
+        print(f"[调用异常]: {e}")
