@@ -71,6 +71,7 @@ def demo_file_io():
     # Python 都会 100% 自动调用 f.close() 关闭文件！
     
     # 1. 覆盖写入（"w" 模式：如果文件已存在，会彻底清空后重新写）
+    # 1. 写入文件（"w" 覆盖写入模式）
     # encoding="utf-8" 极其重要，防止 Windows 中文乱码！
     with open(file_path, "w", encoding="utf-8") as f:
         f.write("# 智能体持久化记忆存储\n")
@@ -82,6 +83,13 @@ def demo_file_io():
     with open(file_path, "a", encoding="utf-8") as f:
         f.write("追加记录：已完成 Python 异常捕获与文件操作学习！\n")
     print(f"2. 成功使用 'a' 模式追加新行")
+    print(f"1. 成功使用 with open ('w' 模式) 覆盖写入文件: {file_path}")
+
+    # 2. 追加写入文件（"a" append 追加模式：保留原有内容，向末尾追加）
+    with open(file_path, "a", encoding="utf-8") as f:
+        f.write("新增记忆：用户正在学习文件追加写入（'a' 模式）。\n")
+        f.write("系统响应：已成功在原有记忆末尾追加了两条最新记录！\n")
+    print(f"2. 成功使用 with open ('a' 模式) 追加新内容到文件")
 
     # 3. 读取文件（"r" 只读模式）
     with open(file_path, "r", encoding="utf-8") as f:
@@ -89,6 +97,12 @@ def demo_file_io():
         # .readlines() 按行读取返回列表
         content = f.read()
     print(f"3. 成功读取合并后的完整文件内容:\n---\n{content.strip()}\n---")
+    print(f"3. 成功读取完整文件内容（包含覆盖写入与追加内容）:\n---\n{content.strip()}\n---")
+
+    # 清理测试生成的临时文件
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"已清理临时测试文件: {file_path}")
 
     # 【真实保留文件】：为了让你在左侧文件列表能亲眼点开查看，这里不删除文件
     print(f"\n[真实文件已生成并保留]: {file_path}")
