@@ -13,14 +13,14 @@ from typing import List, Dict, Optional, Tuple, Any
 # ==============================================================================
 
 def demonstrate_data_structures():
-    print("=== 1. 核心数据结构与 TS 对照 ===")
+    # print("=== 1. 核心数据结构与 TS 对照 ===")
     
     # 列表 (List) <---> JS 的 Array
     # 支持 push 对应 append，pop 对应 pop，切片 slice
     frameworks: List[str] = ["React", "Vue", "Next.js"]
     frameworks.append("FastAPI") # 类似 JS 的 frameworks.push("FastAPI")
-    print(f"前端框架列表: {frameworks}")
-    print(f"切片获取前两个元素 (类似 .slice(0, 2)): {frameworks[0:2]}")
+    # print(f"前端框架列表: {frameworks}")
+    # print(f"切片获取前两个元素 (类似 .slice(0, 2)): {frameworks[0:2]}")
 
     # 字典 (Dictionary) <---> JS 的 Object / Record<string, any>
     # 键值对映射，访问使用 dict["key"] 或 dict.get("key", 默认值)
@@ -32,14 +32,14 @@ def demonstrate_data_structures():
     }
     # 使用 .get() 可以防止像 JS 访问 undefined 属性引发报错的情况
     hobby = developer.get("hobby", "写代码与探索大模型")
-    print(f"开发者信息: {developer['name']}, 目标方向: {developer['target_stack']}, 爱好: {hobby}")
+    # print(f"开发者信息: {developer['name']}, 目标方向: {developer['target_stack']}, 爱好: {hobby}")
 
     # 列表推导式 (List Comprehension) <---> JS 的 .map() 和 .filter()
     # 语法：[表达式 for 项 in 迭代对象 if 条件]
     numbers = [1, 2, 3, 4, 5, 6]
     # 类似 JS: numbers.filter(n => n % 2 === 0).map(n => n * 10)
     doubled_evens = [n * 10 for n in numbers if n % 2 == 0]
-    print(f"偶数放大十倍 (类似 filter+map): {doubled_evens}")
+    # print(f"偶数放大十倍 (类似 filter+map): {doubled_evens}")
 
 
 # ==============================================================================
