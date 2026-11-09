@@ -10,6 +10,17 @@ echo.
 set CLI_CMD=
 
 :: 1. 检测命令行工具
+where antigravity-ide >nul 2>nul
+if %errorlevel% equ 0 (
+    set CLI_CMD=antigravity-ide
+    goto :START_INSTALL
+)
+
+if exist "%LOCALAPPDATA%\Programs\Antigravity IDE\bin\antigravity-ide.cmd" (
+    set "CLI_CMD=%LOCALAPPDATA%\Programs\Antigravity IDE\bin\antigravity-ide.cmd"
+    goto :START_INSTALL
+)
+
 where antigravity >nul 2>nul
 if %errorlevel% equ 0 (
     set CLI_CMD=antigravity

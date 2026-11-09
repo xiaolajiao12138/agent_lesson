@@ -6,8 +6,9 @@
 
 ## 插件存储位置说明
 
-* **本机实际存储路径**：`C:\Users\Administrator\.antigravity\extensions`
-* **新电脑目标路径**：`C:\Users\<新电脑用户名>\.antigravity\extensions`
+* **默认插件存储路径**：`%USERPROFILE%\.antigravity-ide\extensions`（例如：`C:\Users\<用户名>\.antigravity-ide\extensions`）
+* **用户配置存储路径**：`%APPDATA%\Antigravity IDE\User`（包含 `settings.json`、快捷键及代码片段）
+* **命令行工具 CLI 路径**：`%LOCALAPPDATA%\Programs\Antigravity IDE\bin\antigravity-ide.cmd`（可在终端直接运行 `antigravity-ide`）
 
 ---
 
@@ -51,12 +52,12 @@
 
 1. **在当前电脑提取**：
    * 双击运行本目录下的 `backup_to_here.bat`，脚本会自动把当前电脑的插件复制到本文件夹下的 `extensions_offline` 目录。
-   * 或者手动复制当前电脑的 `C:\Users\Administrator\.antigravity\extensions` 文件夹到 U 盘。
+   * 或者手动复制当前电脑的 `%USERPROFILE%\.antigravity-ide\extensions` 文件夹到 U 盘。
 2. **拷贝到新电脑**：
    * 将整个 `antigravity-extensions-backup` 文件夹拷到新电脑。
 3. **在新电脑上还原**：
    * 在新电脑上双击运行 `restore_to_antigravity.bat`。
-   * 脚本会自动将插件解压/复制到新电脑的 `%USERPROFILE%\.antigravity\extensions`。
+   * 脚本会自动将插件解压/复制到新电脑的 `%USERPROFILE%\.antigravity-ide\extensions`。
 4. **启动编辑器**：
    * 打开新电脑上的 Antigravity IDE，所有 25 个插件立即可用，无需重新下载！
 

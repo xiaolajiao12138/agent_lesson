@@ -10,8 +10,11 @@ echo.
 set EXT_SRC=%~dp0extensions_offline
 set CONF_SRC=%~dp0user_config_offline
 
-set EXT_DST=%USERPROFILE%\.antigravity\extensions
-set CONF_DST=%APPDATA%\Antigravity\User
+set EXT_DST=%USERPROFILE%\.antigravity-ide\extensions
+if not exist "%USERPROFILE%\.antigravity-ide" if exist "%USERPROFILE%\.antigravity" set EXT_DST=%USERPROFILE%\.antigravity\extensions
+
+set CONF_DST=%APPDATA%\Antigravity IDE\User
+if not exist "%APPDATA%\Antigravity IDE" if exist "%APPDATA%\Antigravity" set CONF_DST=%APPDATA%\Antigravity\User
 
 if not exist "%EXT_SRC%" (
     echo [错误] 当前目录下未找到 extensions_offline 文件夹！

@@ -8,8 +8,11 @@ echo   （包含：25个插件 + settings.json + 快捷键 + 代码片段）
 echo ========================================================
 echo.
 
-set EXT_SRC=%USERPROFILE%\.antigravity\extensions
-set CONF_SRC=%APPDATA%\Antigravity\User
+set EXT_SRC=%USERPROFILE%\.antigravity-ide\extensions
+if not exist "%EXT_SRC%" set EXT_SRC=%USERPROFILE%\.antigravity\extensions
+
+set CONF_SRC=%APPDATA%\Antigravity IDE\User
+if not exist "%CONF_SRC%" set CONF_SRC=%APPDATA%\Antigravity\User
 
 set EXT_DST=%~dp0extensions_offline
 set CONF_DST=%~dp0user_config_offline
