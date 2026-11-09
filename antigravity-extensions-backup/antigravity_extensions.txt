@@ -1,0 +1,45 @@
+# ========================================================
+# Antigravity IDE 已安装插件精准导出列表 (共 25 个)
+# 导出时间: 2026-11-09
+# 导出目录: C:\Users\Administrator\.antigravity\extensions
+# ========================================================
+
+# --- [AI 智能编码与辅助] ---
+alibaba-cloud.tongyi-lingma
+marscode.marscode-extension
+
+# --- [Python 开发全家桶] ---
+ms-python.python
+ms-python.debugpy
+ms-python.vscode-python-envs
+meta.pyrefly
+
+# --- [前端与 Vue 全家桶] ---
+vue.volar
+vue.vscode-typescript-vue-plugin
+octref.vetur
+esbenp.prettier-vscode
+rvest.vs-code-prettier-eslint
+formulahendry.auto-close-tag
+
+# --- [C / C++ / CMake 工具链] ---
+ms-vscode.cpptools
+ms-vscode.cpptools-extension-pack
+ms-vscode.cpptools-themes
+ms-vscode.cmake-tools
+llvm-vs-code-extensions.vscode-clangd
+
+# --- [其他多语言支持 (Go / Ruby)] ---
+golang.go
+shopify.ruby-lsp
+
+# --- [Git 版本控制增强] ---
+eamodio.gitlens
+donjayamanne.githistory
+
+# --- [编辑器美化与高亮 / 界面汉化] ---
+ms-ceintl.vscode-language-pack-zh-hans
+coenraads.bracket-pair-colorizer-2
+fabiospampinato.vscode-highlight
+naumovs.color-highlight
+
