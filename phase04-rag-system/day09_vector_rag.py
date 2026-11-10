@@ -79,7 +79,7 @@ class SimpleVectorRAG:
             name="enterprise_knowledge_base",
             embedding_function=self.embed_func
         )
-        
+        print(f"初始化")
         # 初始化时自动完成建库建索引
         self._index_documents()
 
@@ -152,17 +152,17 @@ if __name__ == "__main__":
 
         # ----------------------------------------------------------------------
         # 测试二：技术规范语义匹配测试
-        # ----------------------------------------------------------------------
-        test_query_2 = "写前端代码必须要用 TS 吗？"
-        hits2 = rag.semantic_search(test_query_2, top_k=1)
-        for h in hits2:
-            print(f"\n-> 命中切片 ID: {h['id']} | 所属分类: {h['category']} | 空间距离: {h['distance']}")
-            print(f"-> 切片正文: {h['content']}")
+        # # ----------------------------------------------------------------------
+        # test_query_2 = "写前端代码必须要用 TS 吗？"
+        # hits2 = rag.semantic_search(test_query_2, top_k=1)
+        # for h in hits2:
+        #     print(f"\n-> 命中切片 ID: {h['id']} | 所属分类: {h['category']} | 空间距离: {h['distance']}")
+        #     print(f"-> 切片正文: {h['content']}")
 
-        print("\n" + "=" * 60)
-        print("[总结] 向量数据库成功根据语义相关度完成了知识召回！")
-        print("在实际 Agent 中，这些召回的切片正文会被拼装进 Prompt 作为参考背景输入大模型。")
-        print("=" * 60)
+        # print("\n" + "=" * 60)
+        # print("[总结] 向量数据库成功根据语义相关度完成了知识召回！")
+        # print("在实际 Agent 中，这些召回的切片正文会被拼装进 Prompt 作为参考背景输入大模型。")
+        # print("=" * 60)
 
     except ImportError:
         print("[提示] 本地未安装 chromadb 依赖，可执行: pip install chromadb 进行安装体验。")

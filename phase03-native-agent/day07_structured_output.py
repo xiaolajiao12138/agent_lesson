@@ -79,7 +79,7 @@ def extract_structured_data(raw_user_bio: str) -> UserProfileExtract:
 
     # 核心调用：使用 beta 命名空间下的 parse 方法
     completion = client.beta.chat.completions.parse(
-        model=DEFAULT_MODEL,
+        model=DEFAULT_MODEL, #大模型版本
         messages=[
             {
                 "role": "system",
@@ -95,6 +95,7 @@ def extract_structured_data(raw_user_bio: str) -> UserProfileExtract:
     )
 
     # 提取模型解析后的强类型对象
+    print(completion.model_dump_json(indent=2))
     parsed_result: UserProfileExtract = completion.choices[0].message.parsed
     return parsed_result
 
