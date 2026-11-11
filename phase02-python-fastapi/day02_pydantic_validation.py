@@ -112,7 +112,7 @@ class AgentTask(BaseModel):
     # Optional[str] 等同于 str | None
     # 默认值是 None，说明调用方不传这个字段也不会报错
     # 对标 TS: extra_notes?: string | null;
-    extra_notes: Optional[str] = Field(
+    extra_notes: str = Field(
         default=None, description="额外补充说明或备注信息（可选字段，默认为空）"
     )
 

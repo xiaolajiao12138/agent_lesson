@@ -4,7 +4,7 @@ DAY 11 实战源码：生产级 RAG 效果优化 —— 来源引用溯源与防
 【文件导读】：
     如果 RAG 系统只是粗暴地把向量库检索到的文本片段塞进提示词，
     大模型很容易出现“看似有理有据，实则胡编乱造”的幻觉，或者把模型训练预料里的无依据常识混杂进来。
-    
+
     企业级 RAG 的两大核心标配：
     1. 强制引用溯源 (Citations / Grounding)：
        大模型在陈述每一条事实时，必须在句末标明引用的切片 ID（如 [KB_001]），方便前端高亮溯源原文。
@@ -21,11 +21,13 @@ DAY 11 实战源码：生产级 RAG 效果优化 —— 来源引用溯源与防
 
 import json
 import os
+
 from day09_vector_rag import SimpleVectorRAG
 
 # ==============================================================================
 # 生产级带来源引用的 RAG 问答引擎
 # ==============================================================================
+
 
 class ProductionCitationRAG:
     """生产级带来源引用的 RAG 问答系统实现"""
@@ -43,6 +45,7 @@ class ProductionCitationRAG:
         4. 推理阶段：以 temperature=0.0 请求大模型输出带溯源角标的回答。
         """
         from openai import OpenAI
+
         client = OpenAI()
 
         # 步骤 1：向量相似度召回最相关的 2 篇文档
@@ -74,15 +77,15 @@ class ProductionCitationRAG:
         )
 
         print("\n--- 正在调用大模型生成带溯源引用的答案 (Temperature=0.0) ---")
-        
+
         # 步骤 4：请求 LLM
         response = client.chat.completions.create(
             model="gpt-4o",
-            temperature=0.0, # 严谨问答场景下务必将温度设为 0，杜绝幻觉
+            temperature=0.0,  # 严谨问答场景下务必将温度设为 0，杜绝幻觉
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt_payload}
-            ]
+                {"role": "user", "content": user_prompt_payload},
+            ],
         )
 
         return response.choices[0].message.content
@@ -101,22 +104,28 @@ if __name__ == "__main__":
         print("[提示] 检测到当前系统未设置 OPENAI_API_KEY 环境变量。")
         print("以下展示大模型在严格防幻觉规则约束下的真实预期响应演示：")
         print("=" * 60)
-        
+
         print(f"\n[问题 1 测试]：{q1}")
-        print("[知识库检索到的切片]：KB_001 (入职满一年的正式员工享受每年 5 天带薪年假...)")
+        print(
+            "[知识库检索到的切片]：KB_001 (入职满一年的正式员工享受每年 5 天带薪年假...)"
+        )
         print("[模型带溯源的严谨回答]：")
-        print("根据公司规定，入职满一年的正式员工才享受每年 5 天带薪年假，因此刚入职半年的员工暂不支持享受带薪年假 [KB_001]。")
+        print(
+            "根据公司规定，入职满一年的正式员工才享受每年 5 天带薪年假，因此刚入职半年的员工暂不支持享受带薪年假 [KB_001]。"
+        )
 
         print("-" * 60)
         print(f"\n[问题 2 测试（知识库中没有的内容）]：{q2}")
-        print("[知识库检索结果]：未召回相关切片（仅召回人事/差旅/代码规范等不相关内容）")
+        print(
+            "[知识库检索结果]：未召回相关切片（仅召回人事/差旅/代码规范等不相关内容）"
+        )
         print("[模型严谨拒答，拒绝脑补]：")
         print("依据现有制度文档，未找到关于公司下午茶是否提供星巴克咖啡的明确规定。")
         print("=" * 60 + "\n")
     else:
         try:
             rag_engine = ProductionCitationRAG()
-            
+
             print(f"\n[问题 1]: {q1}")
             ans1 = rag_engine.generate_grounded_answer(q1)
             print(f"[回答 1]:\n{ans1}")

@@ -4,7 +4,7 @@ DAY 09 实战源码：RAG 核心体系 —— 文档分块、向量化与 Chroma
 【文件导读】：
     当大模型缺乏企业私有业务数据、最新时效资讯或领域内幕资料时，
     RAG（Retrieval-Augmented Generation 检索增强生成）是最有效的落地技术。
-    
+
     本文件演示轻量级开源向量数据库 Chroma 的核心使用闭环：
     知识录入 -> 结构化打标 -> 向量嵌入 (Embedding) -> 高维空间余弦/欧氏距离相似度召回。
 
@@ -26,7 +26,7 @@ DAY 09 实战源码：RAG 核心体系 —— 文档分块、向量化与 Chroma
 ==============================================================================
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # ==============================================================================
 # 1. 模拟企业内部知识库文档数据 (Knowledge Chunks)
@@ -36,28 +36,29 @@ KNOWLEDGE_DOCS = [
     {
         "id": "KB_001",
         "category": "人事规章",
-        "text": "公司公休假规定：入职满一年的正式员工享受每年 5 天带薪年假。年假需提前 3 个工作日在内部 OA 提单申请。"
+        "text": "公司公休假规定：入职满一年的正式员工享受每年 5 天带薪年假。年假需提前 3 个工作日在内部 OA 提单申请。",
     },
     {
         "id": "KB_002",
         "category": "财务报销",
-        "text": "差旅报销标准：出差到一类城市（北京、上海、深圳）住宿标准上限为 500 元/天，餐饮补贴 100 元/天，需提供增值税专用发票。"
+        "text": "差旅报销标准：出差到一类城市（北京、上海、深圳）住宿标准上限为 500 元/天，餐饮补贴 100 元/天，需提供增值税专用发票。",
     },
     {
         "id": "KB_003",
         "category": "安全合规",
-        "text": "代码与数据安全规范：严禁将任何包含客户真实手机号、身份证、数据库生产连接密码的代码推送到公开仓库，违者严重警告直至解除合同。"
+        "text": "代码与数据安全规范：严禁将任何包含客户真实手机号、身份证、数据库生产连接密码的代码推送到公开仓库，违者严重警告直至解除合同。",
     },
     {
         "id": "KB_004",
         "category": "技术规范",
-        "text": "前端工程规范：全员统一使用 TypeScript 5.0+ 进行开发，组件命名遵循 PascalCase，必须通过 ESLint 和 Prettier 严格校验方可合并分支。"
-    }
+        "text": "前端工程规范：全员统一使用 TypeScript 5.0+ 进行开发，组件命名遵循 PascalCase，必须通过 ESLint 和 Prettier 严格校验方可合并分支。",
+    },
 ]
 
 # ==============================================================================
 # 2. 向量库客户端与集合 (Collection) 初始化
 # ==============================================================================
+
 
 class SimpleVectorRAG:
     """
@@ -70,16 +71,15 @@ class SimpleVectorRAG:
 
         # 1. 初始化 Chroma 内存客户端（开发调试首选，不产生本地垃圾文件；生产环境可用 PersistentClient 存盘）
         self.chroma_client = chromadb.Client()
-        
+
         # 2. 选择文本向量化嵌入算法（此处使用 Chroma 内置的默认算法，也可切换为 OpenAI text-embedding-3-small）
         self.embed_func = embedding_functions.DefaultEmbeddingFunction()
-        
+
         # 3. 创建或获取一个向量集合（相当于一张存放知识向量的数据表）
         self.collection = self.chroma_client.get_or_create_collection(
-            name="enterprise_knowledge_base",
-            embedding_function=self.embed_func
+            name="enterprise_knowledge_base", embedding_function=self.embed_func
         )
-        print(f"初始化")
+        print("初始化")
         # 初始化时自动完成建库建索引
         self._index_documents()
 
@@ -89,17 +89,13 @@ class SimpleVectorRAG:
         将普通纯文本转为多维数学向量，并存入底层 HNSW 向量索引图中。
         """
         print("[1/2] 正在将企业知识库文档切片灌入 Chroma 向量数据库...")
-        
+
         ids = [doc["id"] for doc in KNOWLEDGE_DOCS]
         documents = [doc["text"] for doc in KNOWLEDGE_DOCS]
         metadatas = [{"category": doc["category"]} for doc in KNOWLEDGE_DOCS]
 
         # upsert: 存在则按 ID 更新，不存在则直接追加插入
-        self.collection.upsert(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas
-        )
+        self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
         print(f"[2/2] 向量索引库构建完毕，共成功索引 {len(ids)} 篇知识文档。")
 
     def semantic_search(self, query: str, top_k: int = 2) -> List[Dict[str, Any]]:
@@ -112,12 +108,9 @@ class SimpleVectorRAG:
           按相关度从高到低排序的知识切片列表
         """
         print(f"\n[执行语义检索] 用户输入: '{query}'")
-        
+
         # Chroma 底层会自动把 query 转换成同一个维度的向量，然后在高维空间计算距离
-        results = self.collection.query(
-            query_texts=[query],
-            n_results=top_k
-        )
+        results = self.collection.query(query_texts=[query], n_results=top_k)
 
         matched_results = []
         for i in range(len(results["ids"][0])):
@@ -126,11 +119,14 @@ class SimpleVectorRAG:
                 "category": results["metadatas"][0][i]["category"],
                 "content": results["documents"][0][i],
                 # 距离得分（Distance）：在欧氏距离度量下，数值越小代表两者在高维空间越挨得近，相似度越高
-                "distance": round(results["distances"][0][i], 4) if "distances" in results else None
+                "distance": round(results["distances"][0][i], 4)
+                if "distances" in results
+                else None,
             }
             matched_results.append(doc_info)
 
         return matched_results
+
 
 # ==============================================================================
 # 3. 测试检索效果验证
@@ -147,7 +143,9 @@ if __name__ == "__main__":
         test_query_1 = "我去深圳出差一晚上住酒店花了480元，能全额报销吗？"
         hits = rag.semantic_search(test_query_1, top_k=1)
         for h in hits:
-            print(f"-> 命中切片 ID: {h['id']} | 所属分类: {h['category']} | 空间距离: {h['distance']}")
+            print(
+                f"-> 命中切片 ID: {h['id']} | 所属分类: {h['category']} | 空间距离: {h['distance']}"
+            )
             print(f"-> 切片正文: {h['content']}")
 
         # ----------------------------------------------------------------------
@@ -165,4 +163,6 @@ if __name__ == "__main__":
         # print("=" * 60)
 
     except ImportError:
-        print("[提示] 本地未安装 chromadb 依赖，可执行: pip install chromadb 进行安装体验。")
+        print(
+            "[提示] 本地未安装 chromadb 依赖，可执行: pip install chromadb 进行安装体验。"
+        )

@@ -141,5 +141,5 @@ if __name__ == "__main__":
         print("\n[序列化导出] 格式化输出供前端 Vue/React 直接渲染的 JSON:")
         print(profile.model_dump_json(indent=2))
 
-    except Exception as e:
+    except json.JSONDecodeError as e:
         print(f"[调用异常]: {e}")
