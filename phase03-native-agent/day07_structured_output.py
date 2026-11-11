@@ -24,48 +24,60 @@ import json
 import os
 import sys
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 # 动态引入项目根目录的通用配置
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 try:
-    from config import get_openai_client, DEFAULT_MODEL
+    from config import DEFAULT_MODEL, get_openai_client
 except ImportError:
     # 兼容独立运行
     from openai import OpenAI
+
     def get_openai_client():
         return OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY", "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"),
-            base_url=os.getenv("OPENAI_BASE_URL", "https://sub2api.starysp.top/v1")
+            api_key=os.getenv(
+                "OPENAI_API_KEY",
+                "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345",
+            ),
+            base_url=os.getenv("OPENAI_BASE_URL", "https://sub2api.starysp.top/v1"),
         )
+
     DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME", "gpt-6.1-sol")
 
 # ==============================================================================
 # 1. 定义我们期望从非结构化文本中精准抽取的契约结构 (Pydantic Schema)
 # ==============================================================================
 
+
 class UserProfileExtract(BaseModel):
     """
     【用户画像提取契约模型】
     模型会根据类名、Docstring、字段名以及 Field 的 description 来精准理解每个字段的业务语义。
     """
+
     user_name: str = Field(description="用户姓名")
     current_role: str = Field(description="当前职业岗位角色，如前端工程师、产品经理等")
     skills: List[str] = Field(description="用户掌握的专业技能列表（数组结构）")
     years_of_experience: int = Field(description="工作年限，必须提取为纯整型数字")
-    is_interested_in_ai: bool = Field(description="是否对 AI 或 Agent 表现出浓厚兴趣，布尔值")
-    
-    # ge (greater than or equal) 与 le (less than or equal) 
+    is_interested_in_ai: bool = Field(
+        description="是否对 AI 或 Agent 表现出浓厚兴趣，布尔值"
+    )
+
+    # ge (greater than or equal) 与 le (less than or equal)
     # 会被自动转化为 JSON Schema 的 {"minimum": 0.0, "maximum": 1.0}，约束模型评分范围
     confidence_score: float = Field(
         description="大模型对提取信息完整度的自我置信度评分 (0.0 到 1.0)",
         ge=0.0,
-        le=1.0
+        le=1.0,
     )
+
 
 # ==============================================================================
 # 2. 调用大模型并强制应用结构化解析
 # ==============================================================================
+
 
 def extract_structured_data(raw_user_bio: str) -> UserProfileExtract:
     """
@@ -79,16 +91,13 @@ def extract_structured_data(raw_user_bio: str) -> UserProfileExtract:
 
     # 核心调用：使用 beta 命名空间下的 parse 方法
     completion = client.beta.chat.completions.parse(
-        model=DEFAULT_MODEL, #大模型版本
+        model=DEFAULT_MODEL,  # 大模型版本
         messages=[
             {
                 "role": "system",
-                "content": "你是一个极其严格的信息抽取助手。请仔细阅读用户提供的个人自述，提取出规范的人物画像。"
+                "content": "你是一个极其严格的信息抽取助手。请仔细阅读用户提供的个人自述，提取出规范的人物画像。",
             },
-            {
-                "role": "user",
-                "content": raw_user_bio
-            }
+            {"role": "user", "content": raw_user_bio},
         ],
         # 【关键参数】：将 Pydantic 类直接传入 response_format，SDK 会自动将其编译为严格的 JSON Schema
         response_format=UserProfileExtract,

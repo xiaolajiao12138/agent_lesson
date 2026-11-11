@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: support
+      POSTGRES_USER: support
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - support_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U support -d support"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  migrate:
+    build: .
+    environment: &database
+      DATABASE_URL: postgresql+psycopg://support:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/support
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    environment:
+      <<: *database
+      AGENT_IDENTITIES_JSON: ${AGENT_IDENTITIES_JSON:?set AGENT_IDENTITIES_JSON}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready', timeout=3).close()"]
+      interval: 10s
+      timeout: 4s
+      retries: 6
+    restart: unless-stopped
+
+volumes:
+  support_data:

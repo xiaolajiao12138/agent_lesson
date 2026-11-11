@@ -29,12 +29,12 @@ from typing import List, Optional
 # 2. Field: 字段约束工具（设置默认值、最大最小值、大模型描述文本）
 # 3. field_validator: 单字段自定义校验装饰器（针对某个特定字段安检）
 # 4. model_validator: 全局/跨字段联动校验装饰器（针对整张卡片多字段联动安检）
-from pydantic import BaseModel, Field, field_validator, model_validator, ValidationError
-
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 # ==============================================================================
 # 1. 枚举类型定义（对标 TypeScript 的 enum 或字面量联合类型）
 # ==============================================================================
+
 
 # TS 对照: type PriorityLevel = 'low' | 'medium' | 'high' | 'critical';
 # 在 Python 中同时继承 str 和 Enum 的小妙招：
@@ -43,9 +43,10 @@ class PriorityLevel(str, Enum):
     """
     任务优先级枚举类
     """
-    LOW = "low"            # 低优先级
-    MEDIUM = "medium"      # 中等优先级（默认值）
-    HIGH = "high"          # 高优先级
+
+    LOW = "low"  # 低优先级
+    MEDIUM = "medium"  # 中等优先级（默认值）
+    HIGH = "high"  # 高优先级
     CRITICAL = "critical"  # 紧急核心任务
 
 
@@ -53,10 +54,11 @@ class PriorityLevel(str, Enum):
 # 2. 定义 Pydantic 数据模型（对标 TS 的 Zod Schema: z.object({...})）
 # ==============================================================================
 
+
 class AgentTask(BaseModel):
     """
     智能体任务卡片数据契约模型 (Data Contract)
-    
+
     【核心知识点】：
     每个字段的定义格式为：
     字段名: 类型 = Field(默认值或..., 约束条件1, 约束条件2, description="说明")
@@ -66,8 +68,7 @@ class AgentTask(BaseModel):
     # 核心细节：这里的三个点 ... (Ellipsis 省略号) 在 Pydantic 中专门表示【此字段必须传入，绝不能漏传】！
     # 对标 TS: task_id: string; (非可选属性)
     task_id: str = Field(
-        ..., 
-        description="任务唯一ID标识，通常由系统自动生成（如 TASK_001）"
+        ..., description="任务唯一ID标识，通常由系统自动生成（如 TASK_001）"
     )
 
     # 2. 带有长度约束的字符串
@@ -76,15 +77,14 @@ class AgentTask(BaseModel):
         ...,
         min_length=3,
         max_length=50,
-        description="任务简要标题，长度必须在 3 到 50 个字符之间"
+        description="任务简要标题，长度必须在 3 到 50 个字符之间",
     )
 
     # 3. 带有默认值的枚举字段
     # 如果外部没有传 priority 字段，自动使用默认值 PriorityLevel.MEDIUM ("medium")
     # 对标 TS: priority?: PriorityLevel; (默认赋值 'medium')
     priority: PriorityLevel = Field(
-        default=PriorityLevel.MEDIUM,
-        description="任务执行优先级，默认为 medium"
+        default=PriorityLevel.MEDIUM, description="任务执行优先级，默认为 medium"
     )
 
     # 4. 复杂列表字段与【默认工厂函数 default_factory】(极其高频的面试与实战避坑点！)
@@ -94,7 +94,7 @@ class AgentTask(BaseModel):
     # 写 default_factory=list 代表：每次实例化新对象时，都全新执行一次 list() 生成独立空列表！
     assigned_tools: List[str] = Field(
         default_factory=list,
-        description="分配给该任务调用的工具名称列表，例如 ['web_search', 'calculator']"
+        description="分配给该任务调用的工具名称列表，例如 ['web_search', 'calculator']",
     )
 
     # 5. 数字范围校验（ge 与 le）
@@ -105,7 +105,7 @@ class AgentTask(BaseModel):
         default=30,
         ge=5,
         le=300,
-        description="任务最大等待执行超时时间（单位：秒，必须介于 5 到 300 之间）"
+        description="任务最大等待执行超时时间（单位：秒，必须介于 5 到 300 之间）",
     )
 
     # 6. 可选字段 (Optional Field)
@@ -113,8 +113,7 @@ class AgentTask(BaseModel):
     # 默认值是 None，说明调用方不传这个字段也不会报错
     # 对标 TS: extra_notes?: string | null;
     extra_notes: Optional[str] = Field(
-        default=None,
-        description="额外补充说明或备注信息（可选字段，默认为空）"
+        default=None, description="额外补充说明或备注信息（可选字段，默认为空）"
     )
 
     # ==========================================================================
@@ -136,7 +135,7 @@ class AgentTask(BaseModel):
         if not cleaned_title:
             # 抛出 ValueError 会被 Pydantic 自动捕获并包装成规范的 ValidationError
             raise ValueError("任务标题不能仅由无意义的空白字符组成！")
-        
+
         # 返回清洗过首尾空格后的干净字符串
         return cleaned_title
 
@@ -151,7 +150,7 @@ class AgentTask(BaseModel):
     def validate_cross_field_rules(self):
         """
         此时所有基础字段都已经过初步解析，self 身上已经拥有了完整的属性！
-        
+
         【业务联动规则】：
         如果该智能体任务被标记为最高紧急等级（CRITICAL），
         为了防止大模型卡死引发系统雪崩，它的超时时间（timeout_seconds）绝不能超过 60 秒！
@@ -160,7 +159,7 @@ class AgentTask(BaseModel):
             raise ValueError(
                 f"【多字段联动违规】紧急任务 (critical) 为了防止系统卡死，超时时间绝不能超过 60 秒！当前传入了: {self.timeout_seconds}s"
             )
-        
+
         # ⚠️ 规则要求：校验完成后，必须把 self 原样 return 出去！
         return self
 
@@ -169,18 +168,19 @@ class AgentTask(BaseModel):
 # 3. 核心实战演示：为什么开发 AI Agent 必须使用 Pydantic？
 # ==============================================================================
 
+
 def demonstrate_pydantic_for_agents():
     print("=" * 70)
     print("【1. 成功解析与对象化】（类似 Zod.parse 校验合法数据）")
     print("=" * 70)
-    
+
     # 模拟从前端表单、或者从大模型返回的原始 JSON 字典数据
     raw_data = {
         "task_id": "TASK_2026_001",
         "title": "分析 Q3 财报并提取风险点",
         "priority": "high",  # 会被自动映射并验证为 PriorityLevel.HIGH
         "assigned_tools": ["pdf_parser", "calculator"],
-        "timeout_seconds": 60
+        "timeout_seconds": 60,
         # extra_notes 没传，会自动填充默认值 None
     }
 
@@ -192,7 +192,9 @@ def demonstrate_pydantic_for_agents():
     print(f"[通过] 任务实例化成功！")
     print(f"   任务编号: {task_instance}")
     print(f"   任务标题: {task_instance.title}")
-    print(f"   优先级对象: {task_instance.priority} (其底层字符串值: {task_instance.priority.value})")
+    print(
+        f"   优先级对象: {task_instance.priority} (其底层字符串值: {task_instance.priority.value})"
+    )
     print(f"   工具列表: {task_instance.assigned_tools}")
     print(f"   超时限制: {task_instance.timeout_seconds}s")
     print(f"   可选备注: {task_instance.extra_notes}")
@@ -208,15 +210,12 @@ def demonstrate_pydantic_for_agents():
     print("\n" + "=" * 70)
     print("【2. 异常拦截机制】（当大模型发疯、返回残缺或非法数据时）")
     print("=" * 70)
-    
+
     # 故意构造一份违规数据，模拟大模型“抽风幻觉”生成了不符合要求的参数：
     # 1. 漏掉了必填的 task_id
     # 2. title 只有 2 个字，违反了 min_length=3
     # 3. timeout_seconds 传了 9999，违反了 le=300
-    invalid_llm_output = {
-        "title": "太短",
-        "timeout_seconds": 9999
-    }
+    invalid_llm_output = {"title": "太短", "timeout_seconds": 9999}
 
     try:
         print("正在尝试解析非法数据...")
@@ -227,15 +226,14 @@ def demonstrate_pydantic_for_agents():
         print(f"错误详情统计共包含 {err.error_count()} 处违规：\n")
         # 遍历具体的错误字段与原因
         for item in err.errors():
-            loc = " -> ".join(str(x) for x in item['loc'])
-            msg = item['msg']
+            loc = " -> ".join(str(x) for x in item["loc"])
+            msg = item["msg"]
             print(f"   -> 字段 [{loc}]: {msg}")
-
 
     print("\n" + "=" * 70)
     print("【3. 全量跨字段联动拦截】（@model_validator 多字段互相制约校验）")
     print("=" * 70)
-    
+
     # 模拟数据：每个字段单独看都完全合规！
     # - task_id 填了（合规）
     # - title 长度够长（合规）
@@ -246,7 +244,7 @@ def demonstrate_pydantic_for_agents():
         "task_id": "TASK_CRITICAL_999",
         "title": "核心支付系统宕机紧急修复任务",
         "priority": "critical",
-        "timeout_seconds": 180  # 违反了 @model_validator 设定的不超过 60 秒规则！
+        "timeout_seconds": 180,  # 违反了 @model_validator 设定的不超过 60 秒规则！
     }
 
     try:
@@ -255,9 +253,8 @@ def demonstrate_pydantic_for_agents():
     except ValidationError as err:
         print(f"[精准拦截！] @model_validator 成功捕获到了跨字段业务逻辑违规！")
         for item in err.errors():
-            msg = item['msg']
+            msg = item["msg"]
             print(f"   -> 违规详情: {msg}")
-
 
     print("\n" + "=" * 70)
     print("【4. 终极大招：零成本自动生成给大模型的 Function Calling 工具说明书！】")

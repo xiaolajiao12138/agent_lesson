@@ -1,0 +1,6 @@
+[
+  {"token": "training-blue-customer-000001", "user_id": "alice", "tenant_id": "blue", "role": "customer"},
+  {"token": "training-blue-customer-000002", "user_id": "bob", "tenant_id": "blue", "role": "customer"},
+  {"token": "training-blue-reviewer-000001", "user_id": "mei", "tenant_id": "blue", "role": "reviewer"},
+  {"token": "training-green-reviewer-000001", "user_id": "lin", "tenant_id": "green", "role": "reviewer"}
+]
