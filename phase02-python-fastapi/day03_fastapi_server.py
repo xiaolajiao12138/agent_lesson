@@ -22,7 +22,7 @@ DAY 03 实战源码：FastAPI 现代异步微服务（对标 Express / Next.js A
 
 import asyncio
 import time
-from typing import List, Dict, Any
+
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field
 app = FastAPI(
     title="AI Agent 后端网关服务",
     description="提供给前端 Vue/React 调用的智能体调度与状态管理 API",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # ==============================================================================
@@ -46,10 +46,14 @@ app = FastAPI(
 # 通过注册 CORSMiddleware 中间件，后端在响应头中自动注入允许跨域的指令。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],            # 允许所有前端来源访问（生产环境建议配置为具体的域名如 ["https://myapp.com"]）
-    allow_credentials=True,         # 允许前端跨域请求携带 Cookie 或 Authorization 头
-    allow_methods=["*"],            # 允许所有的 HTTP 动词：GET, POST, PUT, DELETE, OPTIONS
-    allow_headers=["*"],            # 允许前端携带任何自定义请求头（例如 x-token, Content-Type 等）
+    allow_origins=[
+        "*"
+    ],  # 允许所有前端来源访问（生产环境建议配置为具体的域名如 ["https://myapp.com"]）
+    allow_credentials=True,  # 允许前端跨域请求携带 Cookie 或 Authorization 头
+    allow_methods=["*"],  # 允许所有的 HTTP 动词：GET, POST, PUT, DELETE, OPTIONS
+    allow_headers=[
+        "*"
+    ],  # 允许前端携带任何自定义请求头（例如 x-token, Content-Type 等）
 )
 
 # ==============================================================================
@@ -61,18 +65,24 @@ app.add_middleware(
 # 1. 静态支持：编写代码时提供完整的字段自动补全和类型推导。
 # 2. 运行时拦截：前端如果少传字段、类型错误或字段为空，FastAPI 在进入函数前就会直接返回 422 报错！
 
+
 class UserQueryRequest(BaseModel):
     """
     【前端请求载荷 DTO】
     对应前端 POST 请求体: { "session_id": "xxx", "prompt": "xxx", "model_preference": "gpt-4o" }
     """
+
     # session_id: 用于维持对话上下文记忆或 LangGraph 的 checkpoint 检查点状态
-    session_id: str = Field(..., description="会话ID，用于串联上下文或 LangGraph 检查点")
-    
+    session_id: str = Field(
+        ..., description="会话ID，用于串联上下文或 LangGraph 检查点"
+    )
+
     # min_length=1: 强制校验用户问题不能为空白字符串
     # max_length=1000: 防止超大请求攻击后端，保护 LLM Token 预算
-    prompt: str = Field(..., min_length=1, max_length=1000, description="用户的提问内容")
-    
+    prompt: str = Field(
+        ..., min_length=1, max_length=1000, description="用户的提问内容"
+    )
+
     # 默认值设定：若前端不传该字段，后端自动 fallback 降级使用 gpt-4o
     model_preference: str = Field(default="gpt-4o", description="首选大模型型号")
 
@@ -82,15 +92,22 @@ class AgentExecutionResponse(BaseModel):
     【统一后端响应体 DTO】
     强制约束后端必须严格按照该结构返回数据，杜绝前后端因字段名不一致（如 snake_case vs camelCase）导致的撕逼
     """
+
     status: str = Field(..., description="业务执行状态码：'success' | 'error'")
     session_id: str = Field(..., description="原样透传会话ID，供前端做消息队列对齐")
-    reasoning_steps: List[str] = Field(..., description="Agent 的思考链推导过程列表（前端可渲染为可折叠手风琴面板）")
+    reasoning_steps: list[str] = Field(
+        ..., description="Agent 的思考链推导过程列表（前端可渲染为可折叠手风琴面板）"
+    )
     final_answer: str = Field(..., description="最终生成的文本答复")
-    elapsed_time_seconds: float = Field(..., description="后端处理与外部工具调用总耗时（秒）")
+    elapsed_time_seconds: float = Field(
+        ..., description="后端处理与外部工具调用总耗时（秒）"
+    )
+
 
 # ==============================================================================
 # 4. 路由定义 (Route Handlers)
 # ==============================================================================
+
 
 @app.get("/")
 async def health_check():
@@ -105,7 +122,7 @@ async def health_check():
     "/api/agent/chat",
     response_model=AgentExecutionResponse,  # 响应模型约束：FastAPI 自动按该模型过滤并校验返回值
     summary="单次调用 Agent 推理接口",
-    tags=["Agent 核心接口"]
+    tags=["Agent 核心接口"],
 )
 async def dispatch_agent_task(payload: UserQueryRequest):
     """
@@ -148,8 +165,9 @@ async def dispatch_agent_task(payload: UserQueryRequest):
         session_id=payload.session_id,
         reasoning_steps=[step1, step2, step3],
         final_answer=f"针对您的提问「{payload.prompt}」，系统已成功为您检索并梳理完毕！",
-        elapsed_time_seconds=elapsed
+        elapsed_time_seconds=elapsed,
     )
+
 
 # ==============================================================================
 # 5. 服务启动引导（ASGI 服务器运行）
@@ -157,12 +175,13 @@ async def dispatch_agent_task(payload: UserQueryRequest):
 # 当直接 python day03_fastapi_server.py 运行时，进入主入口启动 uvicorn
 if __name__ == "__main__":
     import uvicorn
+
     print("\n" + "=" * 60)
     print("正在启动 FastAPI 异步服务...")
     print("服务本地访问地址: http://127.0.0.1:8000")
     print("Swagger 交互式文档: http://127.0.0.1:8000/docs")
     print("按 Ctrl + C 可终止服务")
     print("=" * 60 + "\n")
-    
+
     # 生产环境中推荐通过 CLI 启动以支持代码热重载：uvicorn day03_fastapi_server:app --reload
     uvicorn.run(app, host="127.0.0.1", port=8000)

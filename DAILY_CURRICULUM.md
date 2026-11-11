@@ -19,7 +19,9 @@ flowchart TD
     D35 --> D40["DAY 40-42: MCP 协议开发与生态集成 (Model Context Protocol)"]
     D40 --> D43["DAY 43-46: 全链路可观测性与评估 (Langfuse Trace/Evals)"]
     D43 --> D47["DAY 47-60: 全栈流式交互 (FastAPI SSE + 前端 Generative UI)"]
-    D47 --> D90["DAY 61-90: 商业级端到端 Agent 综合毕业实战"]
+    D47 --> Backend["DAY 50-53: 异步、FastAPI、日志和测试"]
+    Backend --> Delivery["企业交付实战: 售后工单项目七课"]
+    Delivery --> D90["DAY 61-90: 商业级端到端 Agent 综合毕业实战"]
 
     style D1 fill:#e0f2fe,stroke:#0284c7,stroke-width:2px
     style D7 fill:#e0f2fe,stroke:#0284c7,stroke-width:2px
@@ -75,6 +77,29 @@ flowchart TD
 | **DAY 60-90** | **企业级商业项目实战** | 端到端智能体项目综合落地、SaaS 化多租户权限设计与求职简历包装 | [阶段六概览](./06-阶段六：企业级毕业项目与简历包装指南.md) | 毕业项目专属架构方案 | [ ] |
 
 ---
+
+## 后端工程基础
+
+| 课时 | 讲义 | 配套代码 | 完成打卡 |
+| --- | --- | --- | --- |
+| DAY 50 | [Python 异步编程详解](./daily_lessons/DAY_50_Python异步编程详解.md) | [异步示例](./phase07-backend-engineering/day50_async_python.py) | [ ] |
+| DAY 51 | [FastAPI 工程化与方法全解](./daily_lessons/DAY_51_FastAPI工程化与方法全解.md) | [FastAPI 示例](./phase07-backend-engineering/day51_fastapi_engineering.py) | [ ] |
+| DAY 52 | [配置管理与链路追踪日志](./daily_lessons/DAY_52_配置管理与链路追踪日志.md) | [配置与日志示例](./phase07-backend-engineering/day52_settings_and_logging.py) | [ ] |
+| DAY 53 | [单元测试与大模型 Mock](./daily_lessons/DAY_53_单元测试与大模型Mock.md) | [pytest 和 Mock 示例](./phase07-backend-engineering/day53_pytest_mock_llm.py) | [ ] |
+
+## 企业交付实战
+
+以下七课共用 [售后工单项目](./phase08-enterprise-agent/README.md)。项目说明包含 PowerShell 启动、端到端验收和部署步骤。
+
+| 课时 | 讲义 | 配套代码 | 完成打卡 |
+| --- | --- | --- | --- |
+| 第 1 课 | [需求拆解与工单状态机](./daily_lessons/企业实战_01_需求拆解与工单状态机.md) | [状态与表结构](./phase08-enterprise-agent/support_agent/models.py)、[输入输出契约](./phase08-enterprise-agent/support_agent/schemas.py) | [ ] |
+| 第 2 课 | [SQLAlchemy 事务与 Alembic 迁移](./daily_lessons/企业实战_02_SQLAlchemy事务与Alembic迁移.md) | [数据库入口](./phase08-enterprise-agent/support_agent/db.py)、[初始迁移](./phase08-enterprise-agent/migrations/versions/0001_initial.py) | [ ] |
+| 第 3 课 | [状态恢复、幂等与并发](./daily_lessons/企业实战_03_状态恢复幂等与并发.md) | [创建与审批](./phase08-enterprise-agent/support_agent/workflow.py) | [ ] |
+| 第 4 课 | [鉴权、数据隔离与审计](./daily_lessons/企业实战_04_鉴权数据隔离与审计.md) | [身份依赖](./phase08-enterprise-agent/support_agent/security.py)、[API](./phase08-enterprise-agent/support_agent/main.py) | [ ] |
+| 第 5 课 | [知识库导入、更新与检索](./daily_lessons/企业实战_05_知识库导入更新与检索.md) | [检索与文档管理](./phase08-enterprise-agent/support_agent/knowledge.py) | [ ] |
+| 第 6 课 | [自动化测试与 Agent 评测](./daily_lessons/企业实战_06_自动化测试与Agent评测.md) | [集成测试](./phase08-enterprise-agent/tests/test_delivery.py)、[评测运行器](./phase08-enterprise-agent/evals/run.py) | [ ] |
+| 第 7 课 | [Docker 部署、CI 与线上排障](./daily_lessons/企业实战_07_Docker部署CI与线上排障.md) | [Compose](./phase08-enterprise-agent/compose.yaml)、[CI](./.github/workflows/enterprise-agent.yml) | [ ] |
 
 ## 🏃 快速启动指引
 

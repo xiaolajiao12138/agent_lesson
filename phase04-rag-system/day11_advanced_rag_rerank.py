@@ -20,6 +20,7 @@ DAY 11 实战源码：生产级 RAG 效果优化 —— 来源引用溯源与防
 """
 
 import os
+<<<<<<< HEAD
 import sys
 
 from dotenv import load_dotenv
@@ -52,6 +53,8 @@ DEFAULT_MODEL = os.getenv("mode") or "gpt-6.1-sol"
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 os.environ["OPENAI_BASE_URL"] = OPENAI_BASE_URL
 os.environ["OPENAI_API_BASE"] = OPENAI_BASE_URL
+=======
+>>>>>>> 9527dd1d52ec943c35a53668ceacecce547d3cfb
 
 from day09_vector_rag import SimpleVectorRAG
 
@@ -115,7 +118,11 @@ class ProductionCitationRAG:
 
         # 步骤 4：请求 LLM
         response = client.chat.completions.create(
+<<<<<<< HEAD
             model=DEFAULT_MODEL,
+=======
+            model="gpt-4o",
+>>>>>>> 9527dd1d52ec943c35a53668ceacecce547d3cfb
             temperature=0.0,  # 严谨问答场景下务必将温度设为 0，杜绝幻觉
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -136,6 +143,7 @@ if __name__ == "__main__":
     q1 = "请问刚入职半年的员工可以申请休几天年假？"
     q2 = "请问公司下午茶提供星巴克咖啡吗？"
 
+<<<<<<< HEAD
     try:
         start_time = time.time()
         rag_engine = ProductionCitationRAG()
@@ -151,3 +159,41 @@ if __name__ == "__main__":
         print(f"\n[总耗时]: {end_time - start_time:.2f} 秒")
     except Exception as e:
         print(f"[调用异常]: {e}")
+=======
+    if not os.getenv("OPENAI_API_KEY"):
+        print("\n" + "=" * 60)
+        print("[提示] 检测到当前系统未设置 OPENAI_API_KEY 环境变量。")
+        print("以下展示大模型在严格防幻觉规则约束下的真实预期响应演示：")
+        print("=" * 60)
+
+        print(f"\n[问题 1 测试]：{q1}")
+        print(
+            "[知识库检索到的切片]：KB_001 (入职满一年的正式员工享受每年 5 天带薪年假...)"
+        )
+        print("[模型带溯源的严谨回答]：")
+        print(
+            "根据公司规定，入职满一年的正式员工才享受每年 5 天带薪年假，因此刚入职半年的员工暂不支持享受带薪年假 [KB_001]。"
+        )
+
+        print("-" * 60)
+        print(f"\n[问题 2 测试（知识库中没有的内容）]：{q2}")
+        print(
+            "[知识库检索结果]：未召回相关切片（仅召回人事/差旅/代码规范等不相关内容）"
+        )
+        print("[模型严谨拒答，拒绝脑补]：")
+        print("依据现有制度文档，未找到关于公司下午茶是否提供星巴克咖啡的明确规定。")
+        print("=" * 60 + "\n")
+    else:
+        try:
+            rag_engine = ProductionCitationRAG()
+
+            print(f"\n[问题 1]: {q1}")
+            ans1 = rag_engine.generate_grounded_answer(q1)
+            print(f"[回答 1]:\n{ans1}")
+
+            print(f"\n[问题 2]: {q2}")
+            ans2 = rag_engine.generate_grounded_answer(q2)
+            print(f"[回答 2]:\n{ans2}")
+        except Exception as e:
+            print(f"[调用异常]: {e}")
+>>>>>>> 9527dd1d52ec943c35a53668ceacecce547d3cfb

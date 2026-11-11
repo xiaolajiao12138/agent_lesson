@@ -1,0 +1,10 @@
+[
+  {"id": "returns-blue", "user": "alice", "question": "退货期限是多少？", "route": "answer", "source_id": "returns", "expected_excerpt": "签收后 7 天内可提交退货申请。"},
+  {"id": "returns-green", "user": "lin", "question": "退货期限是多少？", "route": "answer", "source_id": "returns", "expected_excerpt": "签收后 15 天内可提交退货申请。"},
+  {"id": "delivery-alias", "user": "alice", "question": "如何查快递？", "route": "answer", "source_id": "delivery", "expected_excerpt": "发货后可在订单详情页查看物流单号。"},
+  {"id": "manual-reviewer", "user": "mei", "question": "交接编号如何处理？", "route": "answer", "source_id": "manual", "expected_excerpt": "审批员需核对交接编号。"},
+  {"id": "manual-customer", "user": "alice", "question": "交接编号如何处理？", "route": "transfer"},
+  {"id": "cross-tenant", "user": "lin", "question": "怎么查物流？", "route": "transfer"},
+  {"id": "unknown", "user": "alice", "question": "上门安装怎么预约？", "route": "transfer"},
+  {"id": "tie", "user": "alice", "question": "退货和物流一起怎么办？", "route": "transfer"}
+]
