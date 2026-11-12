@@ -1,8 +1,8 @@
 """
 ================================================================================
-DAY 50 实战源码：Python 异步编程详解（asyncio 全家桶 + 异步调用大模型）
+DAY 20 实战源码：Python 异步编程详解（asyncio 全家桶 + 异步调用大模型）
 ================================================================================
-配套讲义：daily_lessons/DAY_50_Python异步编程详解.md
+配套讲义：daily_lessons/DAY_20_Python异步编程详解.md
 
 本文件包含 10 个可独立运行的演示，每个演示都会打印耗时，让你亲眼看到差别：
     1. 协程是“懒”的：忘记 await 会发生什么
@@ -25,8 +25,8 @@ DAY 50 实战源码：Python 异步编程详解（asyncio 全家桶 + 异步调�
     - async def + yield / async for <===> async function* / for await
 
 运行方式：
-    python day50_async_python.py          # 运行全部离线演示（不消耗 Token）
-    python day50_async_python.py --llm    # 额外运行第 10 个真实大模型演示
+    python day20_async_python.py          # 运行全部离线演示（不消耗 Token）
+    python day20_async_python.py --llm    # 额外运行第 10 个真实大模型演示
 """
 
 import asyncio

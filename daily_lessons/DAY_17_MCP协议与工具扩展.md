@@ -1,4 +1,4 @@
-# DAY 40 ~ DAY 46：MCP 协议与企业级可观测性
+# DAY 17：MCP 协议与企业级可观测性
 
 > **目标**：掌握 Anthropic 推动的 Model Context Protocol（模型上下文协议）行业标准，以及如何通过 Langfuse 实现生产级的 Trace、Cost 与 Latency 审计。
 

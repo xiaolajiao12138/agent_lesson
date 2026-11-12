@@ -1,8 +1,8 @@
 """
 ================================================================================
-DAY 53 实战源码：智能体单元测试与大模型 Mock（pytest + pytest-asyncio + AsyncMock）
+DAY 23 实战源码：智能体单元测试与大模型 Mock（pytest + pytest-asyncio + AsyncMock）
 ================================================================================
-配套讲义：daily_lessons/DAY_53_单元测试与大模型Mock.md
+配套讲义：daily_lessons/DAY_23_单元测试与大模型Mock.md
 
 本文件演示如何对 AI Agent 业务代码进行企业级单元测试与异常场景覆盖：
     1. 【参数化测试 @pytest.mark.parametrize】：一次性测试多种恶意 Prompt / 边界输入
@@ -11,8 +11,8 @@ DAY 53 实战源码：智能体单元测试与大模型 Mock（pytest + pytest-a
     4. 【FastAPI 依赖覆盖 dependency_overrides】：无侵入测试受鉴权保护的 API 接口
 
 运行方式：
-    python day53_pytest_mock_llm.py    # 直接运行（内置调用 pytest 并展示全量测试结果）
-    pytest day53_pytest_mock_llm.py -v # 使用原生 pytest 命令运行
+    python day23_pytest_mock_llm.py    # 直接运行（内置调用 pytest 并展示全量测试结果）
+    pytest day23_pytest_mock_llm.py -v # 使用原生 pytest 命令运行
 """
 
 import asyncio

@@ -1,4 +1,4 @@
-# DAY 50：Python 异步编程详解（asyncio 全家桶 + 异步调用大模型）
+# DAY 20：Python 异步编程详解（asyncio 全家桶 + 异步调用大模型）
 
 > **所属阶段**：phase07 后端工程化（P0 必修）  
 > **配套代码**：[`phase07-backend-engineering/day50_async_python.py`](../phase07-backend-engineering/day50_async_python.py)  

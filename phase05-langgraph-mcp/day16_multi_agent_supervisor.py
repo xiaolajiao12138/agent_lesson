@@ -1,5 +1,5 @@
 """
-DAY 35 实战源码：多 Agent 协作系统 —— Supervisor 主管派单模式
+DAY 16 实战源码：多 Agent 协作系统 —— Supervisor 主管派单模式
 ==============================================================================
 【文件导读】：
     单一 Agent 在面对复杂大工程时，容易在超长的上下文对话中“顾此失彼”、“注意力稀释”或出现严重的幻觉。
@@ -17,7 +17,7 @@ DAY 35 实战源码：多 Agent 协作系统 —— Supervisor 主管派单模�
 
 【运行要求】：
     pip install langgraph langchain-core
-    python day35_multi_agent_supervisor.py
+    python day16_multi_agent_supervisor.py
 ==============================================================================
 """
 

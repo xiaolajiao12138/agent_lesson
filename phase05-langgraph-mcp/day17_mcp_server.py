@@ -1,5 +1,5 @@
 """
-DAY 40 实战源码：开发符合官方 MCP (Model Context Protocol) 规范的工具服务
+DAY 17 实战源码：开发符合官方 MCP (Model Context Protocol) 规范的工具服务
 ==============================================================================
 【文件导读】：
     在 MCP 出现之前，开发者要想让大模型调用一个本地工具，必须：
@@ -21,7 +21,7 @@ DAY 40 实战源码：开发符合官方 MCP (Model Context Protocol) 规范的�
 
 【运行要求】：
     pip install mcp
-    python day40_mcp_server.py
+    python day17_mcp_server.py
 ==============================================================================
 """
 

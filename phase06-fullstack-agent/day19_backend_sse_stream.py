@@ -1,5 +1,5 @@
 """
-DAY 47 实战源码：全栈 Agent 后端 —— FastAPI 结构化 SSE 流式事件推送
+DAY 19 实战源码：全栈 Agent 后端 —— FastAPI 结构化 SSE 流式事件推送
 ==============================================================================
 【文件导读】：
     智能体与普通聊天机器人的本质区别在于：
@@ -17,7 +17,7 @@ DAY 47 实战源码：全栈 Agent 后端 —— FastAPI 结构化 SSE 流式事
 
 【运行要求】：
     pip install fastapi uvicorn sse-starlette
-    python day47_backend_sse_stream.py
+    python day19_backend_sse_stream.py
     访问测试：http://127.0.0.1:8000/api/agent/stream?prompt=分析新能源汽车
 ==============================================================================
 """

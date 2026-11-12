@@ -1,5 +1,5 @@
 """
-DAY 43 实战源码：Agent 链路追踪与生产可观测性（基于 Langfuse）
+DAY 18 实战源码：Agent 链路追踪与生产可观测性（基于 Langfuse）
 ==============================================================================
 【文件导读】：
     当智能体服务上线到生产环境后，你必然会面对三大灵魂拷问：
@@ -14,7 +14,7 @@ DAY 43 实战源码：Agent 链路追踪与生产可观测性（基于 Langfuse�
 
 【运行要求】：
     pip install langfuse openai
-    python day43_langfuse_observability.py
+    python day18_langfuse_observability.py
 ==============================================================================
 """
 

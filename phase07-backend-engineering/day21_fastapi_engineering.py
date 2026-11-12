@@ -1,8 +1,8 @@
 """
 ================================================================================
-DAY 51 实战源码：FastAPI 企业级工程化与核心方法全解
+DAY 21 实战源码：FastAPI 企业级工程化与核心方法全解
 ================================================================================
-配套讲义：daily_lessons/DAY_51_FastAPI工程化与方法全解.md
+配套讲义：daily_lessons/DAY_21_FastAPI工程化与方法全解.md
 
 本文件在一个完整可运行的服务中，手把手演示企业级 FastAPI 的 7 大核心方法与对比：
     1. 【生命周期 lifespan】：替代已废弃的 @app.on_event，管理全局连接池 (app.state)
@@ -14,8 +14,8 @@ DAY 51 实战源码：FastAPI 企业级工程化与核心方法全解
     7. 【文件上传 UploadFile】：RAG 知识库上传文档的标准接口写法
 
 运行方式：
-    python day51_fastapi_engineering.py          # 自动运行内置自检测试（无需手动开浏览器，直接看全流程输出！）
-    python day51_fastapi_engineering.py --serve  # 启动 8000 端口服务，浏览器访问 http://127.0.0.1:8000/docs
+    python day21_fastapi_engineering.py          # 自动运行内置自检测试（无需手动开浏览器，直接看全流程输出！）
+    python day21_fastapi_engineering.py --serve  # 启动 8000 端口服务，浏览器访问 http://127.0.0.1:8000/docs
 """
 
 import asyncio
