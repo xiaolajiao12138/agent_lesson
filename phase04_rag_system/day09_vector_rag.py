@@ -26,7 +26,7 @@ DAY 09 实战源码：RAG 核心体系 —— 文档分块、向量化与 Chroma
 ==============================================================================
 """
 
-from typing import Any, Dict, List
+import json
 
 # ==============================================================================
 # 1. 模拟企业内部知识库文档数据 (Knowledge Chunks)
@@ -98,7 +98,7 @@ class SimpleVectorRAG:
         self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
         print(f"[2/2] 向量索引库构建完毕，共成功索引 {len(ids)} 篇知识文档。")
 
-    def semantic_search(self, query: str, top_k: int = 2) -> List[Dict[str, Any]]:
+    def semantic_search(self, query: str, top_k: int = 2) -> list[dict[str, any]]:
         """
         【高维语义相似度查询】
         参数：
@@ -111,7 +111,7 @@ class SimpleVectorRAG:
 
         # Chroma 底层会自动把 query 转换成同一个维度的向量，然后在高维空间计算距离
         results = self.collection.query(query_texts=[query], n_results=top_k)
-
+        print(f"[检索结果] 共命中 {len(results['ids'][0])} 条相关知识切片。")
         matched_results = []
         for i in range(len(results["ids"][0])):
             doc_info = {
@@ -142,6 +142,7 @@ if __name__ == "__main__":
         # ----------------------------------------------------------------------
         test_query_1 = "我去深圳出差一晚上住酒店花了480元，能全额报销吗？"
         hits = rag.semantic_search(test_query_1, top_k=1)
+        print(json.dumps(hits))
         for h in hits:
             print(
                 f"-> 命中切片 ID: {h['id']} | 所属分类: {h['category']} | 空间距离: {h['distance']}"
