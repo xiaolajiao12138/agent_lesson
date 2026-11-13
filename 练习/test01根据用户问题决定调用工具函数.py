@@ -24,32 +24,40 @@ class PolicyArgs(BaseModel):
     query:str = Field(description="企业制度相关的问题或关键词，如出差住宿标准")
     top_k:int = Field(description="召回切片数",default=2)
 class WeatherArgs(BaseModel):
-    query:str=Field(description="需要查询天气的城市，比如”北京“，”深圳“")
+    city:str=Field(description="需要查询天气的城市，比如”北京“，”深圳“")
 class CalculateArgs(BaseModel):
     expression:str = Field(
         description="合法的算术运算表达式"
     )
 #从企业向量知识库中语义检索制度规范
 def search_compony_tool(query:str,top_k:int=2)->str:
+    print(query)
+    chunks = rag_system.semantic_search(query,top_k=top_k)
+    if not chunks:
+        return "企业知识库中未检索到任何相关条款"
+    return "\n\n".join(
+        [
+            f"【切片ID:{c['id']} | 分类：{c["category"]}】\n{c['content']} "
+            for c in chunks
+        ]
+    )
+  
+def get_weather_tool(city:str)->str:
+    mock_data = {
+        "北京":{"temp":"12℃","condition":"晴朗少云","wind":"西北风3级"},
+        "上海":{"temp":"5℃","condition":"阴天下雨","wind":"东南风5级"},
+        "深圳":{"temp":"20℃","condition":"晴朗","wind":"北风6级"}
+    }
+    info = mock_data.get(
+        city,{"temp":"18℃","condition":"下雨","wind":"北风6级"}
+    )
+    return json.dumps({"city":city,**info},ensure_ascii=False)
+def calculate_tool(expression:str)->str:
     try:
-        print(query)
-        chunks = rag_system.semantic_search(query,top_k=top_k)
-        if not chunks:
-            return "企业知识库中未检索到任何相关条款"
-        return 
+        res = eval(expression,{"__builtins__":None},{}) #在安全受命名空间下执行算数计算
+        return json.dumps({"expression":expression,"resutlt":res},ensure_ascii=False)
     except Exception as e:
-        print(e)
-def get_weather_tool(query:str,tpo_k:int = 2)->str:
-    try:
-        print(query)
-    except Exception as e:
-        print(e)
-
-def calculate_tool(query:str,top_k:int=2)->str:
-    try:
-        print(query)
-    except Exception as e:
-        print(e)
+        return json.dumps({"errore":f"计算失败：{e!s}"},ensure_ascii=False)
 
 #将三个工具的说明书打包成一个列表，给大模型看
 ALL_TOOLS = [
@@ -121,8 +129,29 @@ def getanswer(q1:str,max_retries:int=2)->str:
                 time.sleep(1)
             print(e)
     if msg.tool_calls:  #如果大模型返回了要调用工具
-        print(msg)
-
+        for tool_call in msg.tool_calls:
+            function_name = tool_call.function.name
+            function_args = json.loads(tool_call.function.arguments)
+            if function_name in TOOL_REGISTRY:
+                target_function = TOOL_REGISTRY[function_name]
+                observation = target_function(**function_args)
+                message.append(msg.model_dump(exclude_none=True))
+                message.append(
+                    {
+                        "role":"tool",
+                        "tool_call_id":tool_call.id,
+                        "content":str(observation)
+                    }
+                )
+    try:
+        final_res = client.chat.completions.create(
+            model=DEFAULT_MODEL,temperature=0.0,messages=message
+        )
+        return final_res.choices[0].message.content
+    except Exception as e:
+            return f"获取最终总结答案异常{e}"
+    #如果模型没有调用工具，判定未普通回答
+    return msg.content
 
 if __name__ == "__main__":
     question = [
