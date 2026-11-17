@@ -13,13 +13,53 @@ DAY 18 实战源码：Agent 链路追踪与生产可观测性（基于 Langfuse�
     - 用户反馈（赞/踩/评分）与具体 Trace 自动关联，形成评估飞轮。
 
 【运行要求】：
-    pip install langfuse openai
+    pip install langfuse openai python-dotenv
     python day18_langfuse_observability.py
 ==============================================================================
 """
 
 import os
+import sys
 from typing import Dict, Any
+from dotenv import load_dotenv
+
+# ==============================================================================
+# 1. 配置环境与 API Key（支持本地 .env 与直接默认值注入）
+# ==============================================================================
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+
+# 优先尝试从根目录或当前目录的 .env 文件加载
+load_dotenv(os.path.join(parent_dir, ".env"), override=True)
+load_dotenv(os.path.join(current_dir, ".env"), override=True)
+
+# OpenAI / 代理配置
+OPENAI_API_KEY = (
+    os.getenv("api_key")
+    or os.getenv("OPENAI_API_KEY")
+    or "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"
+)
+OPENAI_BASE_URL = (
+    os.getenv("base_url")
+    or os.getenv("OPENAI_BASE_URL")
+    or "https://sub2api.starysp.top/v1"
+)
+DEFAULT_MODEL = os.getenv("mode") or "gpt-6.1-sol"
+
+# 注入系统环境变量（供 OpenAI 官方 SDK 读取）
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+os.environ["OPENAI_BASE_URL"] = OPENAI_BASE_URL
+os.environ["OPENAI_API_BASE"] = OPENAI_BASE_URL
+
+# ==============================================================================
+# 2. Langfuse 云端面板三要素（可直接在 .env 里写，也可在代码里配置）
+# ==============================================================================
+# 登录 https://cloud.langfuse.com -> Project Settings -> API Keys 获取：
+os.environ["LANGFUSE_PUBLIC_KEY"] = os.getenv("LANGFUSE_PUBLIC_KEY", "pk-lf-06978b08-2d1a-432c-b106-50a6ed815ecc")
+os.environ["LANGFUSE_SECRET_KEY"] = os.getenv("LANGFUSE_SECRET_KEY", "sk-lf-85596d51-216b-4d31-89d2-771dad2898c6")
+os.environ["LANGFUSE_HOST"] = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
 
 # ==============================================================================
 # 生产级链路追踪客户端封装
@@ -31,10 +71,6 @@ class AgentObservabilityDemo:
     """
 
     def __init__(self):
-        # 提示：实际生产中需要配置这三项环境变量：
-        # os.environ["LANGFUSE_PUBLIC_KEY"] = "pk-lf-..."
-        # os.environ["LANGFUSE_SECRET_KEY"] = "sk-lf-..."
-        # os.environ["LANGFUSE_HOST"] = "https://cloud.langfuse.com" (或私有部署地址)
         pass
 
     def run_monitored_workflow(self, user_id: str, query: str):
@@ -44,43 +80,56 @@ class AgentObservabilityDemo:
         from langfuse.openai import OpenAI as TracedOpenAI
         
         # TracedOpenAI 是官方 SDK 提供的透明代理包装：
-        # 只要用它发起请求，底层会在后台异步且无侵入地收集延迟、Token 和 Trace 上报云端
-        traced_client = TracedOpenAI()
+        # 显式传入 api_key 与 base_url，底层会在后台异步且无侵入地收集延迟、Token 和 Trace
+        traced_client = TracedOpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_BASE_URL,
+        )
 
         print(f"\n[APM 监控中] 收到终端用户 [{user_id}] 提问: {query}")
+        print("⏳ 正在请求大模型生成内容，并自动记录 Trace 链路追踪元数据...")
         
         # 发起调用，并在额外参数中注入丰富的业务上下文标签
         response = traced_client.chat.completions.create(
-            model="gpt-4o",
+            model=DEFAULT_MODEL,
             temperature=0.3,
             messages=[
                 {"role": "system", "content": "你是一名精通现代 Web 架构与 Agent 的技术专家。"},
                 {"role": "user", "content": query}
             ],
-            # 【核心追踪元数据】：这些字段都会原样落库到 Langfuse 的分析面板中
+            # 【核心追踪元数据】：
             name="agent-architecture-consulting", # 本次 Trace 追踪名称
-            user_id=user_id,                      # 终端用户 ID（可用于统计高频重度用户）
-            tags=["production", "frontend-transform", "q3-demo"], # 业务标签，方便在后台进行多维过滤
-            metadata={
-                "client_framework": "Next.js 15",
-                "request_origin": "Shanghai, China",
-                "environment": "production"
-            }
+            user=user_id,                         # 终端用户标识（对标 OpenAI user 标准字段）
+            # metadata={
+            #     "tags": ["production", "frontend-transform", "q3-demo"],
+            #     "client_framework": "Next.js 15",
+            #     "request_origin": "Shanghai, China",
+            #     "environment": "production"
+            # }
         )
 
         answer = response.choices[0].message.content
         
-        # 打印使用量统计（SDK 已经自动为你上报到了 Langfuse 云端）
+        # 打印使用量统计（SDK 已经自动为你计算并上报）
         usage = response.usage
-        print("\n[监控埋点已成功上报云端]:")
-        print(f"  -> 输入 Prompt Tokens: {usage.prompt_tokens}")
-        print(f"  -> 输出 Completion Tokens: {usage.completion_tokens}")
-        print(f"  -> 本次调用总计消耗 Tokens: {usage.total_tokens}")
+        print("\n[监控埋点已成功生成]:")
+        if usage:
+            print(f"  -> 输入 Prompt Tokens: {usage.prompt_tokens}")
+            print(f"  -> 输出 Completion Tokens: {usage.completion_tokens}")
+            print(f"  -> 本次调用总计消耗 Tokens: {usage.total_tokens}")
+        
+        # 强制将本地队列中的 Trace 数据立即同步推送到云端（防止脚本退出导致数据丢失）
+        try:
+            from langfuse import Langfuse
+            Langfuse().flush()
+            print("🚀 [数据同步] Trace 链路追踪数据已成功推送至 Langfuse 云端！")
+        except Exception:
+            pass
         
         return answer
 
 # ==============================================================================
-# 本地测试与离线模拟
+# 本地测试与执行入口
 # ==============================================================================
 
 if __name__ == "__main__":
@@ -91,27 +140,9 @@ if __name__ == "__main__":
     test_user = "usr_frontend_dev_1001"
     test_query = "请用 3 句话总结前端开发者转型 AI Agent 的最大核心竞争优势。"
 
-    if not os.getenv("OPENAI_API_KEY"):
-        print("\n[提示] 检测到当前系统未设置 OPENAI_API_KEY 环境变量。")
-        print("以下展示生产监控链路捕获到的预期元数据拓扑结构：")
-        print("----------------------------------------------------------------------")
-        print(f"1. 追踪名称 (Trace Name): agent-architecture-consulting")
-        print(f"2. 租户用户 (User ID): {test_user}")
-        print(f"3. 注入标签 (Tags): ['production', 'frontend-transform', 'q3-demo']")
-        print(f"4. 模拟消耗统计:")
-        print(f"   - Prompt Tokens: 48 (约 $0.00012)")
-        print(f"   - Completion Tokens: 125 (约 $0.00125)")
-        print(f"   - 端到端总延迟 (Latency): 1.42s (首字延迟 TTFT: 320ms)")
-        print(f"5. 模型生成内容预览:")
-        print(f"   ① 拥有敏锐的交互感知与全栈组件思维，能将 Agent 的抽象思考转化为直观的 Generative UI；")
-        print(f"   ② 擅长事件驱动与流式响应（SSE/WebSocket），在前后端协作体验上具有天然优势；")
-        print(f"   ③ 从用户体验出发设计 Agent 工具链，更容易做出高可用、符合真实人机交互直觉的 AI 产品。")
-        print("----------------------------------------------------------------------")
-        print("登录 Langfuse 控制台即可查看每一步的瀑布流甘特图与 Token 成本实时汇总！\n")
-    else:
-        try:
-            demo = AgentObservabilityDemo()
-            result = demo.run_monitored_workflow(test_user, test_query)
-            print(f"\n模型生成内容:\n{result}")
-        except Exception as e:
-            print(f"[执行异常]: {e}")
+    try:
+        demo = AgentObservabilityDemo()
+        result = demo.run_monitored_workflow(test_user, test_query)
+        print(f"\n[模型实际生成内容]:\n{result}")
+    except Exception as e:
+        print(f"[执行异常]: {e}")
