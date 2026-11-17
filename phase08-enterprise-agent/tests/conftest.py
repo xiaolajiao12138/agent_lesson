@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 from pytest import fixture
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateSchema, DropSchema
-
 from support_agent.db import build_engine
 from support_agent.main import create_app
 from support_agent.security import load_identities
@@ -37,7 +36,9 @@ def engine(tmp_path):
         with admin.begin() as connection:
             connection.execute(CreateSchema(schema))
         try:
-            isolated_url = admin.url.update_query_dict({"options": f"-csearch_path={schema}"})
+            isolated_url = admin.url.update_query_dict(
+                {"options": f"-csearch_path={schema}"}
+            )
             database = build_engine(isolated_url.render_as_string(hide_password=False))
             try:
                 yield database
@@ -63,7 +64,10 @@ def migrated(engine):
 
 @fixture
 def identities(monkeypatch):
-    monkeypatch.setenv("AGENT_IDENTITIES_JSON", (PROJECT / "demo-identities.json").read_text(encoding="utf-8"))
+    monkeypatch.setenv(
+        "AGENT_IDENTITIES_JSON",
+        (PROJECT / "demo-identities.json").read_text(encoding="utf-8"),
+    )
     return load_identities()
 
 

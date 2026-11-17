@@ -4,7 +4,7 @@ DAY 14 实战源码：LangGraph 状态图与工作流编排（前端状态机与
 【文件导读】：
     当 AI 智能体的业务链路变得复杂（比如包含分支条件、人工审核、多模型轮替、循环重试）时，
     单纯的 if-else 或 while 循环会迅速沦为难以维护的“面条代码”。
-    
+
     LangGraph 是 LangChain 官方推出的现代图编排框架，它将智能体建模为一个“有向状态图”：
     - State (全局状态)：流转在图中的不可变数据模型（直接对标前端 Redux / Pinia Store）
     - Node (节点函数)：纯函数计算单元，接收当前 state，返回局部变更对象（对标 Redux Reducer）
@@ -21,11 +21,12 @@ DAY 14 实战源码：LangGraph 状态图与工作流编排（前端状态机与
 ==============================================================================
 """
 
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
 
 # ==============================================================================
 # 第一步：定义全局状态模型（State Schema）
 # ==============================================================================
+
 
 class TicketState(TypedDict):
     """
@@ -34,17 +35,20 @@ class TicketState(TypedDict):
     在整张图从 START 节点流动到 END 节点的整个生命周期中，所有的节点都共享这份状态，
     且只能通过返回增量字典来进行纯函数式的不可变更新。
     """
-    ticket_id: str               # 工单唯一标识 ID
-    user_query: str              # 用户的初始反馈内容
-    category: str                # 工单分类：'billing' (财务账单) | 'technical' (研发技术) | 'unknown' (未知)
-    assigned_team: str           # 最终处理与承接该工单的业务团队名称
-    resolved_message: str        # 结单说明或返回给用户的答复文案
+
+    ticket_id: str  # 工单唯一标识 ID
+    user_query: str  # 用户的初始反馈内容
+    category: str  # 工单分类：'billing' (财务账单) | 'technical' (研发技术) | 'unknown' (未知)
+    assigned_team: str  # 最终处理与承接该工单的业务团队名称
+    resolved_message: str  # 结单说明或返回给用户的答复文案
+
 
 # ==============================================================================
 # 第二步：定义节点处理函数（Nodes）
 # ==============================================================================
 # 每一个 Node 函数都接收当前最新的 state，并返回一个局部更新的 dict。
 # LangGraph 底层会自动执行 { ...state, ...updates } 将新字段浅合并入全局状态。
+
 
 def classify_intent_node(state: TicketState) -> dict:
     """
@@ -57,38 +61,49 @@ def classify_intent_node(state: TicketState) -> dict:
 
     if "退款" in query or "钱" in query or "发票" in query or "账单" in query:
         return {"category": "billing"}
-    elif "bug" in query or "报错" in query or "无法登录" in query or "崩溃" in query or "typeerror" in query:
+    elif (
+        "bug" in query
+        or "报错" in query
+        or "无法登录" in query
+        or "崩溃" in query
+        or "typeerror" in query
+    ):
         return {"category": "technical"}
     else:
         return {"category": "unknown"}
 
+
 def billing_handler_node(state: TicketState) -> dict:
     """【节点 2：账单财务专属处理流程】"""
-    print(f"[Node 2: 账单处理] 转发给财务团队接入...")
+    print("[Node 2: 账单处理] 转发给财务团队接入...")
     return {
         "assigned_team": "财务清算组",
-        "resolved_message": "已为您转交财务专员，将在 1 个工作日内核实并原路退回款项。"
+        "resolved_message": "已为您转交财务专员，将在 1 个工作日内核实并原路退回款项。",
     }
+
 
 def technical_handler_node(state: TicketState) -> dict:
     """【节点 3：研发技术支持专属处理流程】"""
-    print(f"[Node 3: 技术处理] 转发给 DevOps 与研发团队接入...")
+    print("[Node 3: 技术处理] 转发给 DevOps 与研发团队接入...")
     return {
         "assigned_team": "前端/平台技术支持组",
-        "resolved_message": "技术专家已捕获此错误日志，正排查灰度版本服务。"
+        "resolved_message": "技术专家已捕获此错误日志，正排查灰度版本服务。",
     }
+
 
 def manual_fallback_node(state: TicketState) -> dict:
     """【节点 4：兜底人工客服流】"""
-    print(f"[Node 4: 兜底流转] 无法自动归类，转人工坐席...")
+    print("[Node 4: 兜底流转] 无法自动归类，转人工坐席...")
     return {
         "assigned_team": "人工 VIP 客服组",
-        "resolved_message": "您的问题较为复杂，已为您接通人工 VIP 专席。"
+        "resolved_message": "您的问题较为复杂，已为您接通人工 VIP 专席。",
     }
+
 
 # ==============================================================================
 # 第三步：条件分支路由函数（Conditional Routing）
 # ==============================================================================
+
 
 def route_ticket(state: TicketState) -> Literal["billing", "technical", "fallback"]:
     """
@@ -103,12 +118,14 @@ def route_ticket(state: TicketState) -> Literal["billing", "technical", "fallbac
         return "technical"
     return "fallback"
 
+
 # ==============================================================================
 # 第四步：构建并编译状态图（StateGraph）
 # ==============================================================================
 
+
 def build_workflow_app():
-    from langgraph.graph import StateGraph, START, END
+    from langgraph.graph import END, START, StateGraph
 
     # 1. 初始化图对象，传入 State 契约类型
     workflow = StateGraph(TicketState)
@@ -130,8 +147,8 @@ def build_workflow_app():
         {
             "billing": "billing_service",
             "technical": "technical_service",
-            "fallback": "fallback_service"
-        }
+            "fallback": "fallback_service",
+        },
     )
 
     # 汇流：无论进入哪个业务服务节点，处理完成后都统一连向 END 节点结束流程
@@ -141,6 +158,7 @@ def build_workflow_app():
 
     # 4. 编译图，生成可被调用的 app 实例
     return workflow.compile()
+
 
 # ==============================================================================
 # 第五步：本地测试运行
@@ -158,31 +176,35 @@ if __name__ == "__main__":
             "user_query": "点击登录按钮后页面白屏，Console 报 Uncaught TypeError 错误！",
             "category": "unknown",
             "assigned_team": "none",
-            "resolved_message": ""
+            "resolved_message": "",
         }
-        
+
         print("=" * 60)
         print("=== 测试案例 1：技术工单流转测试 ===")
         print("=" * 60)
         result_1 = app.invoke(input_state_1)
-        print(f"\n[工单处理完毕]:\n  -> 分配团队: {result_1['assigned_team']}\n  -> 答复文案: {result_1['resolved_message']}")
+        print(
+            f"\n[工单处理完毕]:\n  -> 分配团队: {result_1['assigned_team']}\n  -> 答复文案: {result_1['resolved_message']}"
+        )
 
         # ----------------------------------------------------------------------
         # 测试案例 2：财务退费工单
         # ----------------------------------------------------------------------
-        input_state_2 = {
-            "ticket_id": "TICK_1002",
-            "user_query": "上个月我不小心重复续费了年费会员，可以申请退款吗？",
-            "category": "unknown",
-            "assigned_team": "none",
-            "resolved_message": ""
-        }
-        
-        print("\n" + "=" * 60)
-        print("=== 测试案例 2：财务工单流转测试 ===")
-        print("=" * 60)
-        result_2 = app.invoke(input_state_2)
-        print(f"\n[工单处理完毕]:\n  -> 分配团队: {result_2['assigned_team']}\n  -> 答复文案: {result_2['resolved_message']}")
+        # input_state_2 = {
+        #     "ticket_id": "TICK_1002",
+        #     "user_query": "上个月我不小心重复续费了年费会员，可以申请退款吗？",
+        #     "category": "unknown",
+        #     "assigned_team": "none",
+        #     "resolved_message": ""
+        # }
+
+        # print("\n" + "=" * 60)
+        # print("=== 测试案例 2：财务工单流转测试 ===")
+        # print("=" * 60)
+        # result_2 = app.invoke(input_state_2)
+        # print(f"\n[工单处理完毕]:\n  -> 分配团队: {result_2['assigned_team']}\n  -> 答复文案: {result_2['resolved_message']}")
 
     except ImportError:
-        print("[提示] 本地未安装 langgraph 依赖，可执行: pip install langgraph langchain-core 进行安装体验。")
+        print(
+            "[提示] 本地未安装 langgraph 依赖，可执行: pip install langgraph langchain-core 进行安装体验。"
+        )

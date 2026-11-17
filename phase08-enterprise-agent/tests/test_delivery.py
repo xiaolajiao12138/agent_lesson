@@ -3,11 +3,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
-from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import event
-
 from evals.run import load_cases, run_cases
+from fastapi.testclient import TestClient
+from sqlalchemy import event
 from support_agent.main import create_app
 
 TOKENS = {
@@ -22,9 +21,14 @@ def auth(user: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {TOKENS[user]}"}
 
 
-def open_ticket(client: TestClient, question: str = "需要人工处理", key: str = "request-001"):
-    return client.post("/tickets", headers={**auth("alice"), "Idempotency-Key": key},
-                       json={"question": question})
+def open_ticket(
+    client: TestClient, question: str = "需要人工处理", key: str = "request-001"
+):
+    return client.post(
+        "/tickets",
+        headers={**auth("alice"), "Idempotency-Key": key},
+        json={"question": question},
+    )
 
 
 def test_readiness_requires_migration(engine, identities):
@@ -40,7 +44,11 @@ def test_create_replay_and_conflict(client):
     first = open_ticket(client)
     replay = open_ticket(client, question=" 需要人工处理 ")
     conflict = open_ticket(client, question="另一件事")
-    assert (first.status_code, replay.status_code, conflict.status_code) == (201, 200, 409)
+    assert (first.status_code, replay.status_code, conflict.status_code) == (
+        201,
+        200,
+        409,
+    )
     assert replay.json() == first.json()
     assert first.headers["X-Request-ID"] != replay.headers["X-Request-ID"]
     ticket_id = first.json()["id"]
@@ -56,10 +64,14 @@ def test_review_after_restart_and_retry(migrated, identities):
     with TestClient(create_app(migrated, identities)) as after_restart:
         route = f"/tickets/{ticket_id}/review"
         for _ in range(2):
-            response = after_restart.post(route, headers=auth("mei"), json={"decision": "approved"})
+            response = after_restart.post(
+                route, headers=auth("mei"), json={"decision": "approved"}
+            )
             assert response.status_code == 200
             assert response.json()["status"] == "approved"
-        reject = after_restart.post(route, headers=auth("mei"), json={"decision": "rejected"})
+        reject = after_restart.post(
+            route, headers=auth("mei"), json={"decision": "rejected"}
+        )
         assert reject.status_code == 409
         history = after_restart.get(f"/tickets/{ticket_id}/events", headers=auth("mei"))
         assert [event["action"] for event in history.json()] == ["created", "approved"]
@@ -69,24 +81,33 @@ def test_identity_and_resource_access(client):
     ticket_id = open_ticket(client).json()["id"]
     path = f"/tickets/{ticket_id}"
     assert client.get(path).status_code == 401
-    assert client.get(path, headers={"Authorization": "Bearer invalid"}).status_code == 401
+    assert (
+        client.get(path, headers={"Authorization": "Bearer invalid"}).status_code == 401
+    )
     assert client.get(path, headers=auth("alice")).status_code == 200
     assert client.get(path, headers=auth("bob")).status_code == 404
     assert client.get(path, headers=auth("lin")).status_code == 404
     assert client.get(path + "/events", headers=auth("alice")).status_code == 403
     for user, expected in [("alice", 403), ("lin", 404)]:
-        response = client.post(path + "/review", headers=auth(user), json={"decision": "approved"})
+        response = client.post(
+            path + "/review", headers=auth(user), json={"decision": "approved"}
+        )
         assert response.status_code == expected
     assert client.get(path, headers=auth("alice")).json()["status"] == "pending_review"
 
 
-@pytest.mark.parametrize("payload,key", [
-    ({"question": "  "}, "request-001"),
-    ({"question": "有效问题", "tenant_id": "green"}, "request-001"),
-    ({"question": "有效问题"}, "short"),
-])
+@pytest.mark.parametrize(
+    "payload,key",
+    [
+        ({"question": "  "}, "request-001"),
+        ({"question": "有效问题", "tenant_id": "green"}, "request-001"),
+        ({"question": "有效问题"}, "short"),
+    ],
+)
 def test_invalid_create_request(client, payload, key):
-    response = client.post("/tickets", headers={**auth("alice"), "Idempotency-Key": key}, json=payload)
+    response = client.post(
+        "/tickets", headers={**auth("alice"), "Idempotency-Key": key}, json=payload
+    )
     assert response.status_code == 422
 
 
@@ -110,13 +131,21 @@ def test_concurrent_opposing_decisions(client):
 
     def submit(decision):
         barrier.wait()
-        return client.post(f"/tickets/{ticket_id}/review", headers=auth("mei"), json={"decision": decision})
+        return client.post(
+            f"/tickets/{ticket_id}/review",
+            headers=auth("mei"),
+            json={"decision": decision},
+        )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(submit, decision) for decision in ("approved", "rejected")]
+        futures = [
+            pool.submit(submit, decision) for decision in ("approved", "rejected")
+        ]
         responses = [future.result(timeout=15) for future in futures]
     assert sorted(item.status_code for item in responses) == [200, 409]
-    winner = next(item.json()["status"] for item in responses if item.status_code == 200)
+    winner = next(
+        item.json()["status"] for item in responses if item.status_code == 200
+    )
     history = client.get(f"/tickets/{ticket_id}/events", headers=auth("mei"))
     assert [event["action"] for event in history.json()] == ["created", winner]
 
@@ -142,12 +171,18 @@ def test_knowledge_update_and_removal(client):
     route = "/knowledge/returns"
     assert client.put(route, headers=auth("alice"), json=payload).status_code == 403
     assert client.put(route, headers=auth("mei"), json=payload).status_code == 204
-    answer = client.post("/agent/answer", headers=auth("alice"), json={"question": "怎么退货？"})
+    answer = client.post(
+        "/agent/answer", headers=auth("alice"), json={"question": "怎么退货？"}
+    )
     assert answer.json()["citation"]["excerpt"] == payload["body"]
     for _ in range(2):
         assert client.delete(route, headers=auth("mei")).status_code == 204
-    blue = client.post("/agent/answer", headers=auth("alice"), json={"question": "怎么退货？"})
-    green = client.post("/agent/answer", headers=auth("lin"), json={"question": "怎么退货？"})
+    blue = client.post(
+        "/agent/answer", headers=auth("alice"), json={"question": "怎么退货？"}
+    )
+    green = client.post(
+        "/agent/answer", headers=auth("lin"), json={"question": "怎么退货？"}
+    )
     assert blue.json()["route"] == "transfer"
     assert green.json()["citation"]["excerpt"] == "签收后 15 天内可提交退货申请。"
 
