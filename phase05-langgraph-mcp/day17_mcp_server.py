@@ -28,7 +28,7 @@ DAY 17 实战源码：开发符合官方 MCP (Model Context Protocol) 规范的�
 from typing import List, Dict, Any
 
 def create_mcp_app():
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer as FastMCP
 
     # 1. 实例化标准 FastMCP 服务对象
     # 参数为该 MCP Server 在生态系统中的唯一服务命名
@@ -92,16 +92,28 @@ def create_mcp_app():
 # ==============================================================================
 
 if __name__ == "__main__":
-    try:
-        mcp_app = create_mcp_app()
-        print("=" * 60)
-        print("[就绪] 标准 MCP (Model Context Protocol) 工具服务初始化完毕！")
-        print("支持接入: Claude Desktop, Cursor, Antigravity, Custom Agent Client")
-        print("传输协议: 标准输入输出 (stdio) JSON-RPC 2.0 监听中...")
-        print("=" * 60)
-        
-        # 采用标准 stdio 作为传输层（MCP 最通用的一种通信协议）
-        mcp_app.run(transport="stdio")
+    import asyncio
 
-    except ImportError:
-        print("[提示] 本地未安装 mcp 官方依赖，可执行: pip install mcp 进行安装体验。")
+    async def test_mcp():
+        mcp_app = create_mcp_app()
+
+        # 1. 测试查看已注册的工具列表
+        tools = await mcp_app.list_tools()
+        print("=== 1. 已注册的 MCP 工具列表 ===")
+        for t in tools:
+            print(f"  -> 工具名: {t.name} | 描述: {t.description.strip().splitlines()[0]}")
+
+        # 2. 测试调用工具 1：inspect_package_version
+        print("\n=== 2. 测试调用：检查 react 版本 ===")
+        res1 = await mcp_app.call_tool("inspect_package_version", {"package_name": "react"})
+        print("返回结果:", res1.content[0].text)
+
+        # 3. 测试调用工具 2：calculate_bundle_size_impact
+        print("\n=== 3. 测试调用：预估打包体积 ===")
+        res2 = await mcp_app.call_tool(
+            "calculate_bundle_size_impact",
+            {"added_lines_of_code": 200, "has_heavy_dependency": True}
+        )
+        print("返回结果:", res2.content[0].text)
+
+    asyncio.run(test_mcp())
