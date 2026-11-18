@@ -3,7 +3,7 @@ DAY 19 实战源码：全栈 Agent 后端 —— 接入真实大模型 + FastAPI
 ==============================================================================
 【文件导读】：
     本文件已从原先的 mock 模拟逻辑，彻底升级为【真实接入你的大模型 (OpenAI / GPT / DeepSeek)】！
-    
+
     【核心实现架构】：
     1. 真实大模型意图思考与工具调用 (Tool Calling)：
        - 当用户输入任何分析类任务时，大模型主动调用 `render_metric_dashboard` 工具；
@@ -22,7 +22,6 @@ DAY 19 实战源码：全栈 Agent 后端 —— 接入真实大模型 + FastAPI
 import asyncio
 import json
 import os
-import sys
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -38,13 +37,11 @@ load_dotenv(os.path.join(current_dir, ".env"), override=True)
 
 OPENAI_API_KEY = (
     os.getenv("api_key")
-    or os.getenv("OPENAI_API_KEY")
-    or "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"
+    # or os.getenv("OPENAI_API_KEY")
+    # or "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"
 )
 OPENAI_BASE_URL = (
-    os.getenv("base_url")
-    or os.getenv("OPENAI_BASE_URL")
-    or "https://sub2api.starysp.top/v1"
+    os.getenv("base_url") or os.getenv("OPENAI_BASE_URL") or "https://sub2api.starysp.top/v1"
 )
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME") or os.getenv("mode") or "gpt-6.1-sol"
 
@@ -173,7 +170,6 @@ async def real_agent_llm_pipeline(user_prompt: str):
                 ensure_ascii=False,
             ),
         }
-        await asyncio.sleep(0.3)
 
         # ----------------------------------------------------------------------
         # 第一次请求大模型：判定是否需要调用 Generative UI 工具
@@ -271,9 +267,7 @@ async def real_agent_llm_pipeline(user_prompt: str):
                     if delta_text:
                         yield {
                             "event": "message_chunk",
-                            "data": json.dumps(
-                                {"delta": delta_text}, ensure_ascii=False
-                            ),
+                            "data": json.dumps({"delta": delta_text}, ensure_ascii=False),
                         }
 
         else:
@@ -293,7 +287,7 @@ async def real_agent_llm_pipeline(user_prompt: str):
             "data": json.dumps(
                 {
                     "stage": "error",
-                    "message": f"处理过程中发生异常: {str(err)}",
+                    "message": f"处理过程中发生异常: {err!s}",
                 },
                 ensure_ascii=False,
             ),
@@ -301,7 +295,7 @@ async def real_agent_llm_pipeline(user_prompt: str):
         yield {
             "event": "message_chunk",
             "data": json.dumps(
-                {"delta": f"\n\n[系统告警] 模型调用遇到错误: {str(err)}"},
+                {"delta": f"\n\n[系统告警] 模型调用遇到错误: {err!s}"},
                 ensure_ascii=False,
             ),
         }
@@ -334,7 +328,7 @@ if __name__ == "__main__":
     print("🚀 真实大模型驱动的 Agent SSE 流式服务已就绪！")
     print(f"👉 当前连接的大模型: {DEFAULT_MODEL}")
     print(f"👉 API 接入端点: {OPENAI_BASE_URL}")
-    print("👉 本地服务地址: http://127.0.0.1:8019")
-    print("👉 前端联调端点: http://127.0.0.1:8019/api/agent/stream")
+    print("👉 本地服务地址: http://127.0.0.2:8019")
+    print("👉 前端联调端点: http://127.0.0.2:8019/api/agent/stream")
     print("=" * 60)
-    uvicorn.run(app, host="127.0.0.1", port=8019)
+    uvicorn.run(app, host="127.0.0.2", port=8019)

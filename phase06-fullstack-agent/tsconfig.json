@@ -10,8 +10,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "types": ["vite/client"],
     "jsx": "react-jsx",
     "strict": false
   },
-  "include": ["main.tsx", "day19_frontend_generative_ui.tsx", "vite.config.ts"]
+  "include": ["main.tsx", "day19_frontend_generative_ui.tsx", "vite.config.ts", "vue/**/*.ts", "vue/**/*.vue"]
 }

@@ -51,5 +51,28 @@ sequenceDiagram
 ---
 
 ## 🛠️ 今日对应实战源码
-- FastAPI 结构化 SSE 服务端：[`phase06-fullstack-agent/day47_backend_sse_stream.py`](../phase06-fullstack-agent/day47_backend_sse_stream.py)
-- React + TypeScript 流式交互客户端：[`phase06-fullstack-agent/day47_frontend_generative_ui.tsx`](../phase06-fullstack-agent/day47_frontend_generative_ui.tsx)
+- [FastAPI 结构化 SSE 服务端](../phase06-fullstack-agent/day19_backend_sse_stream.py)
+- [React 流式交互客户端](../phase06-fullstack-agent/day19_frontend_generative_ui.tsx)
+- [Vue 3 流式交互客户端](../phase06-fullstack-agent/vue/AgentStreamingTerminal.vue)与[动态指标卡](../phase06-fullstack-agent/vue/MetricDashboardCard.vue)
+
+## Vue 3 版启动
+
+在仓库根目录开启两个终端。第一个启动已有模型配置的 Day 19 后端：
+
+```powershell
+python phase06-fullstack-agent/day19_backend_sse_stream.py
+```
+
+第二个启动 Vite：
+
+```powershell
+Set-Location phase06-fullstack-agent
+npm ci
+npm run dev
+```
+
+打开 [Vue 3 工作台](http://localhost:5173/vue.html)。原 React 工作台在 [根页面](http://localhost:5173/)。Vue 版默认对接当前 Day 19 后端的 `http://127.0.0.2:8019`。如果后端启动在其他地址，在启动 Vite 前设置 `$env:VITE_AGENT_API_BASE_URL = 'http://127.0.0.1:8019'`，将值换成服务实际地址。
+
+提交任务会用 `EventSource` 逐条读取进度、工具调用、结构化卡片和答复文本。`ref()` 保存界面状态，`v-model` 绑定输入，`v-for` 渲染日志和卡片，`onUnmounted()` 关闭连接。指标卡上的自选功能只保存当前页面状态。
+
+在前端目录运行 `npm run build`，可检查 Vue 和 React 的类型并构建两个入口。
