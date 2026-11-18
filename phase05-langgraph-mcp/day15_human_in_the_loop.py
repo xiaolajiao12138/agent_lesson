@@ -24,7 +24,13 @@ DAY 15 实战源码：人机协同与断点恢复（Human-in-the-loop 人在回�
 ==============================================================================
 """
 
-from typing import TypedDict, Literal
+import os
+import sys
+from typing import Literal, TypedDict
+
+# 引入项目根目录的大模型配置中心
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config import DEFAULT_MODEL, get_openai_client
 
 # ==============================================================================
 # 1. 状态定义 (State Schema)
@@ -47,11 +53,26 @@ class DeploymentState(TypedDict):
 
 def prepare_node(state: DeploymentState) -> dict:
     """
-    【节点 1：生成部署命令与预检】
-    Agent 自动分析当前项目配置，组装生产或测试部署指令
+    【节点 1：调用真实大模型生成部署命令与预检】
+    Agent 调用大模型分析当前项目配置与目标环境，组装生产或测试部署指令
     """
-    print(f"\n[Node: 准备节点] 正在打包构建项目: {state['project_name']}，目标环境: {state['env']}")
-    cmd = f"deploy-cli --project {state['project_name']} --target {state['env']} --tag v2.0.0"
+    print(f"\n[Node: 准备节点] 正在请求大模型 [{DEFAULT_MODEL}] 生成项目 {state['project_name']} ({state['env']}) 的部署方案...")
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        temperature=0.0,
+        messages=[
+            {
+                "role": "system",
+                "content": "你是资深 DevOps 发布工程师。请根据项目名称和目标环境，生成一行标准的命令行发布指令（只输出命令本身，如 deploy-cli --project xxx --env prod --rollout canary）。",
+            },
+            {
+                "role": "user",
+                "content": f"项目名称: {state['project_name']}, 目标环境: {state['env']}",
+            },
+        ],
+    )
+    cmd = (resp.choices[0].message.content or "").strip()
     return {"deploy_command": cmd}
 
 def admin_approval_node(state: DeploymentState) -> dict:
@@ -66,12 +87,26 @@ def admin_approval_node(state: DeploymentState) -> dict:
 
 def execute_deploy_node(state: DeploymentState) -> dict:
     """
-    【节点 3：实际执行发布脚本】
+    【节点 3：实际执行发布脚本并由大模型生成上线简报】
     根据 state 中的 approved_by_admin 标记，决定执行真实发布或终止撤销。
     """
+    client = get_openai_client()
     if state.get("approved_by_admin", False):
         print(f"[Node: 执行发布] [审核通过] 正在向 {state['env']} 执行指令: {state['deploy_command']}")
-        return {"execution_log": f"生产环境发布成功，项目 {state['project_name']} 已平滑上线。"}
+        resp = client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是发布机器人。请针对刚刚通过审批并执行成功的部署命令，生成一句简短专业的生产上线成功通知日志（50字以内）。",
+                },
+                {
+                    "role": "user",
+                    "content": f"项目: {state['project_name']}, 环境: {state['env']}, 已执行命令: {state['deploy_command']}",
+                },
+            ],
+        )
+        return {"execution_log": resp.choices[0].message.content or ""}
     else:
         print(f"[Node: 终止发布] [审核驳回] 管理员未批准，取消发布动作。")
         return {"execution_log": "管理员驳回了生产发布申请，工作流已安全终止。"}

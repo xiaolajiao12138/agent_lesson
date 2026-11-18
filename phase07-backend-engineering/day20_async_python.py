@@ -386,15 +386,20 @@ async def demo_async_openai():
         print("  缺少依赖：pip install openai python-dotenv")
         return
 
-    # 从项目根目录的 .env 读取配置（与 pydantic使用/structured_output.py 相同的变量名）
+    # 从项目根目录的 .env 读取配置
     root_env = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
     load_dotenv(root_env, override=True)
-    api_key = os.getenv("api_key") or os.getenv("OPENAI_API_KEY")
-    base_url = os.getenv("base_url") or os.getenv("OPENAI_BASE_URL")
-    model = os.getenv("mode") or os.getenv("OPENAI_MODEL_NAME")
-    if not api_key:
-        print("  未找到 api_key，跳过")
-        return
+    api_key = (
+        os.getenv("api_key")
+        or os.getenv("OPENAI_API_KEY")
+        or "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"
+    )
+    base_url = (
+        os.getenv("base_url")
+        or os.getenv("OPENAI_BASE_URL")
+        or "https://sub2api.starysp.top/v1"
+    )
+    model = os.getenv("mode") or os.getenv("OPENAI_MODEL_NAME") or "gpt-6.1-sol"
 
     # AsyncOpenAI 与 OpenAI 的方法名完全一样，只是每次调用前要加 await
     client = AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=60)
@@ -431,10 +436,7 @@ async def main():
     await demo_blocking_vs_to_thread()
     await demo_async_generator()
     await demo_httpx()
-    if "--llm" in sys.argv:
-        await demo_async_openai()
-    else:
-        print("\n💡 加上 --llm 参数可运行演示 10（真实调用大模型）")
+    await demo_async_openai()
 
 
 if __name__ == "__main__":

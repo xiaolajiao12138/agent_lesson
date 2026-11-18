@@ -128,7 +128,7 @@ class ProductionCitationRAG:
 
 
 # ==============================================================================
-# 本地测试与防幻觉验证
+# 本地测试与防幻觉验证（真实大模型调用）
 # ==============================================================================
 
 if __name__ == "__main__":
@@ -152,39 +152,3 @@ if __name__ == "__main__":
         print(f"\n[总耗时]: {end_time - start_time:.2f} 秒")
     except Exception as e:
         print(f"[调用异常]: {e}")
-    if not os.getenv("OPENAI_API_KEY"):
-        print("\n" + "=" * 60)
-        print("[提示] 检测到当前系统未设置 OPENAI_API_KEY 环境变量。")
-        print("以下展示大模型在严格防幻觉规则约束下的真实预期响应演示：")
-        print("=" * 60)
-
-        print(f"\n[问题 1 测试]：{q1}")
-        print(
-            "[知识库检索到的切片]：KB_001 (入职满一年的正式员工享受每年 5 天带薪年假...)"
-        )
-        print("[模型带溯源的严谨回答]：")
-        print(
-            "根据公司规定，入职满一年的正式员工才享受每年 5 天带薪年假，因此刚入职半年的员工暂不支持享受带薪年假 [KB_001]。"
-        )
-
-        print("-" * 60)
-        print(f"\n[问题 2 测试（知识库中没有的内容）]：{q2}")
-        print(
-            "[知识库检索结果]：未召回相关切片（仅召回人事/差旅/代码规范等不相关内容）"
-        )
-        print("[模型严谨拒答，拒绝脑补]：")
-        print("依据现有制度文档，未找到关于公司下午茶是否提供星巴克咖啡的明确规定。")
-        print("=" * 60 + "\n")
-    else:
-        try:
-            rag_engine = ProductionCitationRAG()
-
-            print(f"\n[问题 1]: {q1}")
-            ans1 = rag_engine.generate_grounded_answer(q1)
-            print(f"[回答 1]:\n{ans1}")
-
-            print(f"\n[问题 2]: {q2}")
-            ans2 = rag_engine.generate_grounded_answer(q2)
-            print(f"[回答 2]:\n{ans2}")
-        except Exception as e:
-            print(f"[调用异常]: {e}")

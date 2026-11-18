@@ -1,40 +1,63 @@
 """
-DAY 19 实战源码：全栈 Agent 后端 —— FastAPI 结构化 SSE 流式事件推送
+DAY 19 实战源码：全栈 Agent 后端 —— 接入真实大模型 + FastAPI 结构化 SSE 流式推送
 ==============================================================================
 【文件导读】：
-    智能体与普通聊天机器人的本质区别在于：
-    - 普通问答只要 1~2 秒就完成了；
-    - 复杂的自主 Agent 需要经历“拆解意图 -> 检索多维数据 -> 触发外部工具 -> 错误重试 -> 整合输出”，
-      耗时往往长达几秒到几十秒！如果采用传统的 HTTP POST 一次性等待返回，前端用户只能干瞪眼。
-
-    因此，现代企业级 Agent 的工业标准交互范式是【SSE (Server-Sent Events) 多事件流式推送】：
-    通过在单个长连接中下发不同事件类型的帧（Event Frames）：
-    1. event: "thought"       -> 思考链 (Chain-of-Thought)，前端渲染为思考动画/折叠框；
-    2. event: "tool_call"     -> 工具调用状态，前端显示调用中/调用成功；
-    3. event: "generative_ui" -> 结构化 UI 数据，前端根据类型动态渲染 React 交互组件！
-    4. event: "message_chunk" -> 最终总结文字，逐字下发打字机流；
-    5. event: "done"          -> 宣告流结束，关闭连接。
-
-【运行要求】：
-    pip install fastapi uvicorn sse-starlette
-    python day19_backend_sse_stream.py
-    访问测试：http://127.0.0.1:8000/api/agent/stream?prompt=分析新能源汽车
+    本文件已从原先的 mock 模拟逻辑，彻底升级为【真实接入你的大模型 (OpenAI / GPT / DeepSeek)】！
+    
+    【核心实现架构】：
+    1. 真实大模型意图思考与工具调用 (Tool Calling)：
+       - 当用户输入任何分析类任务时，大模型主动调用 `render_metric_dashboard` 工具；
+       - 后端通过 `generative_ui` 事件把大模型生成的真实指标下发给前端，动态渲染 React 卡片！
+    2. 真实流式 Token 打字机下发 (stream=True)：
+       - 大模型生成的深度分析与总结，通过 `message_chunk` 事件实时逐字推送到前端！
+    3. 全链路 SSE 多通道事件标准规范：
+       - event: "thought"       -> 真实大模型思考阶段日志
+       - event: "tool_call"     -> 真实的工具调度进度
+       - event: "generative_ui" -> 真实的动态组件数据 (Generative UI)
+       - event: "message_chunk" -> 真实的大模型流式输出
+       - event: "done"          -> 流程结束信号
 ==============================================================================
 """
 
-import json
 import asyncio
+import json
+import os
+import sys
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from openai import AsyncOpenAI
 from sse_starlette.sse import EventSourceResponse
 
-# 初始化 FastAPI 实例
+# 确保加载父级与当前目录的 .env 配置
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+load_dotenv(os.path.join(parent_dir, ".env"), override=True)
+load_dotenv(os.path.join(current_dir, ".env"), override=True)
+
+OPENAI_API_KEY = (
+    os.getenv("api_key")
+    or os.getenv("OPENAI_API_KEY")
+    or "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"
+)
+OPENAI_BASE_URL = (
+    os.getenv("base_url")
+    or os.getenv("OPENAI_BASE_URL")
+    or "https://sub2api.starysp.top/v1"
+)
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL_NAME") or os.getenv("mode") or "gpt-6.1-sol"
+
+# 初始化异步 OpenAI 客户端
+async_client = AsyncOpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+
+# 初始化 FastAPI 应用
 app = FastAPI(
     title="Agent Generative UI Streaming Gateway",
-    description="提供全栈 Agent 结构化多通道流式推送服务的网关"
+    description="提供全栈 Agent 结构化多通道流式推送服务的网关",
 )
 
-# 开启 CORS 跨域配置，确保前端（Vite 5173 / Next.js 3000）联调畅通无阻
+# 开启 CORS 跨域配置，确保前端（Vite 5173）跨域请求通畅
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,116 +66,275 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-async def simulate_complex_agent_pipeline(user_prompt: str):
+# ==============================================================================
+# 定义提供给大模型的 Generative UI 工具说明书 (Tool Schema)
+# ==============================================================================
+
+DASHBOARD_TOOL_SPEC = {
+    "type": "function",
+    "function": {
+        "name": "render_metric_dashboard",
+        "description": (
+            "当用户询问关于行业调研、市场趋势、数据分析、技术方案或商业规划时，"
+            "必须调用此工具生成一个包含核心数据指标与风险分析的交互式卡片展示给前端用户。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "卡片标题，根据用户提问主题动态生成，例如：'2026 AI Agent 就业市场简报'",
+                },
+                "metric1_label": {
+                    "type": "string",
+                    "description": "第一个核心指标的名称（6字以内），根据提问主题动态命名，如 '岗位需求涨幅'、'产业渗透率'、'日活增长率'",
+                },
+                "penetration_rate": {
+                    "type": "string",
+                    "description": "第一个核心指标的具体数值，例如：'+65.0%' 或 '48.6%'",
+                },
+                "metric2_label": {
+                    "type": "string",
+                    "description": "第二个核心指标的名称（6字以内），根据提问主题动态命名，如 '平均薪资溢价'、'海外出口同比'、'转化率'",
+                },
+                "export_growth": {
+                    "type": "string",
+                    "description": "第二个核心指标的具体数值，例如：'+35.2%' 或 '25k-45k'",
+                },
+                "risk_warning": {
+                    "type": "string",
+                    "description": "针对该主题的关键风险提示、挑战或核心建议",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "3个与用户提问主题紧密相关的标签",
+                },
+            },
+            "required": [
+                "title",
+                "metric1_label",
+                "penetration_rate",
+                "metric2_label",
+                "export_growth",
+                "risk_warning",
+                "tags",
+            ],
+        },
+    },
+}
+
+# ==============================================================================
+# 核心业务：真实大模型 Agent 异步多通道生成器
+# ==============================================================================
+
+
+async def real_agent_llm_pipeline(user_prompt: str):
     """
-    【异步多通道事件生成器 (Async Event Generator)】
-    核心：使用 Python 原生异步生成器语法 (async def + yield) 依次产生事件帧。
-    每个事件字典包含：
-      - event: 前端在 addEventListener(event_type, ...) 时监听的事件名称
-      - data: 传递给前端的 JSON 字符串载荷
+    【真实大模型驱动的多通道流式生成器】
     """
-    # ==========================================================================
-    # 通道 1：推送思考过程 (Thinking / Chain-of-Thought)
-    # ==========================================================================
-    # 前端监听到 'thought' 事件，将信息追加进“AI 正在思考...”的手风琴展开框中
-    yield {
-        "event": "thought",
-        "data": json.dumps({
-            "stage": "intent_understanding",
-            "message": f"正在拆解用户目标「{user_prompt}」，检索行业宏观大盘数据..."
-        }, ensure_ascii=False)
-    }
-    await asyncio.sleep(0.8) # 模拟 Agent 规划耗时
-
-    # ==========================================================================
-    # 通道 2：推送外部工具调度事件 (Tool Execution Event)
-    # ==========================================================================
-    # 2.1 推送工具正在调用的状态
-    yield {
-        "event": "tool_call",
-        "data": json.dumps({
-            "tool_name": "fetch_industry_report",
-            "status": "executing",
-            "args": {"sector": "EV_Auto", "year": "2026"}
-        }, ensure_ascii=False)
-    }
-    await asyncio.sleep(1.2) # 模拟执行网络工具耗时
-
-    # 2.2 推送工具执行完毕与返回摘要
-    yield {
-        "event": "tool_call",
-        "data": json.dumps({
-            "tool_name": "fetch_industry_report",
-            "status": "completed",
-            "summary": "成功从行业数据库拉取最新渗透率与出海出口量指标。"
-        }, ensure_ascii=False)
-    }
-    await asyncio.sleep(0.5)
-
-    # ==========================================================================
-    # 通道 3：【核心亮点】推送 Generative UI 结构化交互卡片数据
-    # ==========================================================================
-    # 前端接收到该事件后，不会渲染为枯燥的纯文本，而是直接动态实例化渲染一个 React/Vue 图表卡片！
-    ui_card_payload = {
-        "component_type": "MetricDashboardCard",
-        "props": {
-            "title": "2026 新能源出海核心态势简报",
-            "penetration_rate": "48.6%",
-            "export_growth": "+36.2%",
-            "risk_warning": "海外特定市场存在关税变动风险，需关注本地化建厂进程",
-            "tags": ["出海提速", "电池技术迭代", "智能化座舱"]
-        }
-    }
-    yield {
-        "event": "generative_ui",
-        "data": json.dumps(ui_card_payload, ensure_ascii=False)
-    }
-    await asyncio.sleep(0.6)
-
-    # ==========================================================================
-    # 通道 4：推送最终总结建议的流式打字机字符 (Streaming Text / Markdown)
-    # ==========================================================================
-    # 模拟大模型 token 级别的平滑逐字吐字体验
-    summary_text = (
-        "综上所述，当前产业正加速由国内价格竞争向全球技术与供应链输出演进。"
-        "建议企业重点布局智能化车载交互体验以及自主可控的本地化合规架构。"
-    )
-    for char in summary_text:
+    # Day 13 / 19｜工具调用前先检查业务能力。天气请求不进入报告生成流程，
+    # 但仍用同一套 SSE 事件返回说明并关闭前端连接。
+    if "天气" in user_prompt or "weather" in user_prompt.casefold():
         yield {
             "event": "message_chunk",
-            "data": json.dumps({"delta": char}, ensure_ascii=False)
+            "data": json.dumps(
+                {"delta": "这个工作台尚未接入实时天气数据，暂时无法查询当前天气。"},
+                ensure_ascii=False,
+            ),
         }
-        await asyncio.sleep(0.04) # 模拟真实打字机节奏延迟
+        yield {"event": "done", "data": json.dumps({"status": "finished", "code": 200})}
+        return
 
-    # ==========================================================================
-    # 通道 5：推送任务终结通知 (Done Event)
-    # ==========================================================================
-    # 告知前端整个工作流已全部推送完毕，可以关闭 loading 状态并断开 SSE
-    yield {
-        "event": "done",
-        "data": json.dumps({"status": "finished", "code": 200})
-    }
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "你是一个顶级的全栈 AI Agent 架构顾问。\n"
+                "当用户提出具体行业分析、技术演进或项目规划需求时：\n"
+                "1. 请优先调用 render_metric_dashboard 工具为前端生成直观的指标数据卡片；\n"
+                "2. 随后在文字中给出专业、深刻且落地的系统化建议。"
+            ),
+        },
+        {"role": "user", "content": user_prompt},
+    ]
+
+    try:
+        # ----------------------------------------------------------------------
+        # 通道 1：推送意图理解与思考链 ('thought')
+        # ----------------------------------------------------------------------
+        yield {
+            "event": "thought",
+            "data": json.dumps(
+                {
+                    "stage": "intent_understanding",
+                    "message": f"已接收用户需求「{user_prompt}」，正在连接大模型 ({DEFAULT_MODEL}) 规划执行...",
+                },
+                ensure_ascii=False,
+            ),
+        }
+        await asyncio.sleep(0.3)
+
+        # ----------------------------------------------------------------------
+        # 第一次请求大模型：判定是否需要调用 Generative UI 工具
+        # ----------------------------------------------------------------------
+        first_resp = await async_client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=messages,
+            tools=[DASHBOARD_TOOL_SPEC],
+            tool_choice="auto",
+        )
+
+        assistant_msg = first_resp.choices[0].message
+        messages.append(assistant_msg.model_dump(exclude_none=True))
+
+        # ----------------------------------------------------------------------
+        # 检查大模型是否调用了 Generative UI 卡片工具
+        # ----------------------------------------------------------------------
+        if assistant_msg.tool_calls:
+            for tool_call in assistant_msg.tool_calls:
+                fn_name = tool_call.function.name
+                fn_args_raw = tool_call.function.arguments
+                fn_args = json.loads(fn_args_raw)
+
+                # 通道 2.1：推送工具调用状态
+                yield {
+                    "event": "tool_call",
+                    "data": json.dumps(
+                        {
+                            "tool_name": fn_name,
+                            "status": "executing",
+                            "args": fn_args,
+                        },
+                        ensure_ascii=False,
+                    ),
+                }
+                await asyncio.sleep(0.4)
+
+                # 通道 2.2：推送工具调用成功
+                yield {
+                    "event": "tool_call",
+                    "data": json.dumps(
+                        {
+                            "tool_name": fn_name,
+                            "status": "completed",
+                            "summary": f"大模型已成功生成结构化指标卡片「{fn_args.get('title', '')}」",
+                        },
+                        ensure_ascii=False,
+                    ),
+                }
+
+                # 通道 3：【核心 Generative UI】推送动态组件给 React 渲染
+                if fn_name == "render_metric_dashboard":
+                    ui_payload = {
+                        "component_type": "MetricDashboardCard",
+                        "props": fn_args,
+                    }
+                    yield {
+                        "event": "generative_ui",
+                        "data": json.dumps(ui_payload, ensure_ascii=False),
+                    }
+                    await asyncio.sleep(0.3)
+
+                # 模拟工具执行结果回填给上下文
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": "组件数据已成功在前端页面挂载并渲染完毕。",
+                    }
+                )
+
+            # ------------------------------------------------------------------
+            # 通道 4：真实流式请求大模型最终的深度分析建议 (stream=True)
+            # ------------------------------------------------------------------
+            yield {
+                "event": "thought",
+                "data": json.dumps(
+                    {
+                        "stage": "generating_summary",
+                        "message": "大模型正在实时流式生成详细的战略分析与落地建议...",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+
+            stream_response = await async_client.chat.completions.create(
+                model=DEFAULT_MODEL,
+                messages=messages,
+                stream=True,
+            )
+
+            async for chunk in stream_response:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta_text = chunk.choices[0].delta.content or ""
+                    if delta_text:
+                        yield {
+                            "event": "message_chunk",
+                            "data": json.dumps(
+                                {"delta": delta_text}, ensure_ascii=False
+                            ),
+                        }
+
+        else:
+            # 如果大模型直接用文字回答（未触发工具）
+            content = assistant_msg.content or "已为您处理完成。"
+            for char in content:
+                yield {
+                    "event": "message_chunk",
+                    "data": json.dumps({"delta": char}, ensure_ascii=False),
+                }
+                await asyncio.sleep(0.02)
+
+    except Exception as err:
+        # 异常兜底防护
+        yield {
+            "event": "thought",
+            "data": json.dumps(
+                {
+                    "stage": "error",
+                    "message": f"处理过程中发生异常: {str(err)}",
+                },
+                ensure_ascii=False,
+            ),
+        }
+        yield {
+            "event": "message_chunk",
+            "data": json.dumps(
+                {"delta": f"\n\n[系统告警] 模型调用遇到错误: {str(err)}"},
+                ensure_ascii=False,
+            ),
+        }
+
+    finally:
+        # 通道 5：通知前端流程已结束
+        yield {
+            "event": "done",
+            "data": json.dumps({"status": "finished", "code": 200}),
+        }
+
 
 # ==============================================================================
 # 路由定义与服务启动
 # ==============================================================================
 
+
 @app.get("/api/agent/stream")
-async def sse_agent_endpoint(prompt: str = "默认分析任务"):
+async def sse_agent_endpoint(prompt: str = "分析 2026 年新能源汽车出海战略"):
     """
     【SSE 流式服务接口端点】
-    返回 EventSourceResponse，底层会自动设置标准响应头：
-      Content-Type: text/event-stream
-      Cache-Control: no-cache
-      Connection: keep-alive
     """
-    return EventSourceResponse(simulate_complex_agent_pipeline(prompt))
+    return EventSourceResponse(real_agent_llm_pipeline(prompt))
+
 
 if __name__ == "__main__":
     import uvicorn
+
     print("=" * 60)
-    print("Agent SSE 多通道流式服务已启动: http://127.0.0.1:8000")
-    print("测试流式端点: http://127.0.0.1:8000/api/agent/stream?prompt=分析新能源")
-    print("支持浏览器直接打开上述链接观察原始 SSE 文本帧！")
+    print("🚀 真实大模型驱动的 Agent SSE 流式服务已就绪！")
+    print(f"👉 当前连接的大模型: {DEFAULT_MODEL}")
+    print(f"👉 API 接入端点: {OPENAI_BASE_URL}")
+    print("👉 本地服务地址: http://127.0.0.1:8019")
+    print("👉 前端联调端点: http://127.0.0.1:8019/api/agent/stream")
     print("=" * 60)
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8019)

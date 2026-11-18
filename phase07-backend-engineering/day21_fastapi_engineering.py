@@ -19,10 +19,15 @@ DAY 21 实战源码：FastAPI 企业级工程化与核心方法全解
 """
 
 import asyncio
+import os
 import sys
 import time
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Generic, List, Optional, TypeVar
+
+# 引入项目根目录的大模型配置中心
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config import DEFAULT_MODEL, get_async_openai_client
 
 from fastapi import (
     APIRouter,
@@ -223,6 +228,18 @@ async def send_message(
     # 从 app.state 读取 lifespan 启动时挂载的全局资源
     boot_time = request.app.state.shared_resources["boot_time"]
 
+    # 真实调用大模型获取回复
+    llm_client = get_async_openai_client()
+    target_model = payload.model_name or DEFAULT_MODEL
+    llm_resp = await llm_client.chat.completions.create(
+        model=target_model,
+        messages=[
+            {"role": "system", "content": "你是一个简明扼要的企业 AI 助手，请用一句话回答用户问题。"},
+            {"role": "user", "content": payload.message},
+        ],
+    )
+    ai_reply = llm_resp.choices[0].message.content or ""
+
     return ApiResponse(
         code=0,
         msg="对话处理成功",
@@ -233,6 +250,7 @@ async def send_message(
             "from_header_version": x_client_version,
             "from_depends_user": current_user["username"],
             "server_boot_time": boot_time,
+            "llm_reply": ai_reply,
         },
     )
 

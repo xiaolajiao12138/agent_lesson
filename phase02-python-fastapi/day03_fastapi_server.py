@@ -21,11 +21,18 @@ DAY 03 实战源码：FastAPI 现代异步微服务（对标 Express / Next.js A
 """
 
 import asyncio
+import json
+import os
+import sys
 import time
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# 引入项目根目录的大模型配置中心
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config import DEFAULT_MODEL, get_async_openai_client
 
 # ==============================================================================
 # 1. 初始化 FastAPI 实例（类似 Node.js 中的 const app = express()）
@@ -83,8 +90,8 @@ class UserQueryRequest(BaseModel):
         ..., min_length=1, max_length=1000, description="用户的提问内容"
     )
 
-    # 默认值设定：若前端不传该字段，后端自动 fallback 降级使用 gpt-4o
-    model_preference: str = Field(default="gpt-4o", description="首选大模型型号")
+    # 默认值设定：若前端不传该字段，后端自动使用 .env 配置的模型
+    model_preference: str = Field(default=DEFAULT_MODEL, description="首选大模型型号")
 
 
 class AgentExecutionResponse(BaseModel):
@@ -129,32 +136,35 @@ async def dispatch_agent_task(payload: UserQueryRequest):
     【Agent 任务调度入口】
     业务流程：
       1. 自动提取前端 POST 的 JSON 并实例化为 payload 对象；
-      2. 模拟 Agent 接收提问并触发内部思考循环（Planning -> Tool -> Synthesis）；
+      2. 异步调用真实大模型接口生成推理步骤与最终答复；
       3. 组装耗时与思考链步骤，输出标准化结构数据给前端。
     """
     start_time = time.time()
     print(f"[收到前端请求] 会话 ID: {payload.session_id} | 用户提问: {payload.prompt}")
 
-    # --------------------------------------------------------------------------
-    # 模拟真实 AI Agent 在后台的异步思考与工具调度全过程
-    # 【重点说明】：此处使用 await asyncio.sleep(...) 来非阻塞模拟网络 I/O 延迟
-    # 如果使用阻塞的 time.sleep()，会冻结整个 Python 线程导致其他并发请求卡死！
-    # --------------------------------------------------------------------------
+    client = get_async_openai_client()
+    target_model = payload.model_preference or DEFAULT_MODEL
 
-    # 阶段 1：意图识别与任务规划 (Reasoning / Planning)
-    # Agent 思考：“用户想让我干什么？需要哪些工具？”
-    await asyncio.sleep(0.5)
-    step1 = "已识别意图：查询并汇总相关行业与技术数据。"
+    # 真实异步请求大模型
+    response = await client.chat.completions.create(
+        model=target_model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "你是一个专业的 AI 智能体后端引擎。请针对用户的提问给出条理清晰、准确的答复。"
+                ),
+            },
+            {"role": "user", "content": payload.prompt},
+        ],
+    )
+    real_answer = response.choices[0].message.content or "已完成分析。"
 
-    # 阶段 2：调用外部工具 (Tool Calling)
-    # Agent 决策：“调用网络搜索工具获取最新真实数据”
-    await asyncio.sleep(0.7)
-    step2 = "已调用外部搜索工具 [web_search]，成功检索到 3 条高置信度资讯。"
-
-    # 阶段 3：大模型多源信息融合与最终输出 (Synthesis / LLM Generation)
-    # Agent 汇集工具返回的数据，输入 LLM 生成通顺、有逻辑的回复
-    await asyncio.sleep(0.4)
-    step3 = "大模型综合评估与上下文融合完成，生成最终答复。"
+    reasoning_steps = [
+        f"阶段 1：已接收会话 [{payload.session_id}] 的请求，解析意图完成。",
+        f"阶段 2：已通过异步客户端调度大模型 [{target_model}] 完成上下文推理。",
+        "阶段 3：大模型生成完毕，通过 Pydantic 响应契约校验。",
+    ]
 
     # 计算后端端到端总处理耗时（保留两位小数）
     elapsed = round(time.time() - start_time, 2)
@@ -163,8 +173,8 @@ async def dispatch_agent_task(payload: UserQueryRequest):
     return AgentExecutionResponse(
         status="success",
         session_id=payload.session_id,
-        reasoning_steps=[step1, step2, step3],
-        final_answer=f"针对您的提问「{payload.prompt}」，系统已成功为您检索并梳理完毕！",
+        reasoning_steps=reasoning_steps,
+        final_answer=real_answer,
         elapsed_time_seconds=elapsed,
     )
 

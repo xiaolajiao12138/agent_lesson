@@ -21,7 +21,13 @@ DAY 14 实战源码：LangGraph 状态图与工作流编排（前端状态机与
 ==============================================================================
 """
 
+import os
+import sys
 from typing import Literal, TypedDict
+
+# 引入项目根目录的大模型配置中心
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config import DEFAULT_MODEL, get_openai_client
 
 # ==============================================================================
 # 第一步：定义全局状态模型（State Schema）
@@ -52,51 +58,96 @@ class TicketState(TypedDict):
 
 def classify_intent_node(state: TicketState) -> dict:
     """
-    【节点 1：意图识别与自动分类】
-    在实际生产中，这里往往是一次对大模型的异步调用，让大模型分析用户语义并分类；
-    本示例使用高效关键词做快速归类演示。
+    【节点 1：真实大模型意图识别与自动分类】
+    调用真实大模型分析用户工单语义，归类为 billing / technical / unknown。
     """
-    print(f"\n[Node 1: 意图分类] 正在分析工单: {state['ticket_id']}")
-    query = state["user_query"].lower()
-
-    if "退款" in query or "钱" in query or "发票" in query or "账单" in query:
-        return {"category": "billing"}
-    elif (
-        "bug" in query
-        or "报错" in query
-        or "无法登录" in query
-        or "崩溃" in query
-        or "typeerror" in query
-    ):
-        return {"category": "technical"}
+    print(f"\n[Node 1: 意图分类] 正在调用大模型 [{DEFAULT_MODEL}] 分析工单: {state['ticket_id']}")
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        temperature=0.0,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "你是一个工单分类路由引擎。请阅读用户的工单内容，仅输出以下三个英文单词之一：\n"
+                    "- billing：涉及退款、发票、扣费、账单问题\n"
+                    "- technical：涉及系统报错、Bug、白屏、登录失败等技术问题\n"
+                    "- unknown：其他无法归类的问题\n"
+                    "注意：只输出单词本身，不要包含任何标点或多余文字。"
+                ),
+            },
+            {"role": "user", "content": state["user_query"]},
+        ],
+    )
+    raw_cat = (resp.choices[0].message.content or "unknown").strip().lower()
+    if "billing" in raw_cat:
+        category = "billing"
+    elif "technical" in raw_cat:
+        category = "technical"
     else:
-        return {"category": "unknown"}
+        category = "unknown"
+    print(f"  -> 大模型判定分类结果: [{category}]")
+    return {"category": category}
 
 
 def billing_handler_node(state: TicketState) -> dict:
-    """【节点 2：账单财务专属处理流程】"""
-    print("[Node 2: 账单处理] 转发给财务团队接入...")
+    """【节点 2：账单财务专属大模型处理流程】"""
+    print("[Node 2: 账单处理] 转发给财务大模型专家生成处理方案...")
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "你是企业财务清算组的资深客服专员，请针对用户的账单/退费诉求给出专业、温暖且明确的解决方案（50字以内）。",
+            },
+            {"role": "user", "content": state["user_query"]},
+        ],
+    )
     return {
         "assigned_team": "财务清算组",
-        "resolved_message": "已为您转交财务专员，将在 1 个工作日内核实并原路退回款项。",
+        "resolved_message": resp.choices[0].message.content or "",
     }
 
 
 def technical_handler_node(state: TicketState) -> dict:
-    """【节点 3：研发技术支持专属处理流程】"""
-    print("[Node 3: 技术处理] 转发给 DevOps 与研发团队接入...")
+    """【节点 3：研发技术支持专属大模型处理流程】"""
+    print("[Node 3: 技术处理] 转发给研发技术大模型专家诊断问题...")
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "你是前端与平台技术支持组的资深 SRE 工程师，请针对用户反馈的报错给出初步排查方向与安抚答复（60字以内）。",
+            },
+            {"role": "user", "content": state["user_query"]},
+        ],
+    )
     return {
         "assigned_team": "前端/平台技术支持组",
-        "resolved_message": "技术专家已捕获此错误日志，正排查灰度版本服务。",
+        "resolved_message": resp.choices[0].message.content or "",
     }
 
 
 def manual_fallback_node(state: TicketState) -> dict:
     """【节点 4：兜底人工客服流】"""
-    print("[Node 4: 兜底流转] 无法自动归类，转人工坐席...")
+    print("[Node 4: 兜底流转] 转发给 VIP 综合客服大模型专家...")
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "你是人工 VIP 客服专席，请礼貌回应用户的综合问题并告知将跟进处理（50字以内）。",
+            },
+            {"role": "user", "content": state["user_query"]},
+        ],
+    )
     return {
         "assigned_team": "人工 VIP 客服组",
-        "resolved_message": "您的问题较为复杂，已为您接通人工 VIP 专席。",
+        "resolved_message": resp.choices[0].message.content or "",
     }
 
 
@@ -190,19 +241,21 @@ if __name__ == "__main__":
         # ----------------------------------------------------------------------
         # 测试案例 2：财务退费工单
         # ----------------------------------------------------------------------
-        # input_state_2 = {
-        #     "ticket_id": "TICK_1002",
-        #     "user_query": "上个月我不小心重复续费了年费会员，可以申请退款吗？",
-        #     "category": "unknown",
-        #     "assigned_team": "none",
-        #     "resolved_message": ""
-        # }
+        input_state_2 = {
+            "ticket_id": "TICK_1002",
+            "user_query": "上个月我不小心重复续费了年费会员，可以申请退款吗？",
+            "category": "unknown",
+            "assigned_team": "none",
+            "resolved_message": "",
+        }
 
-        # print("\n" + "=" * 60)
-        # print("=== 测试案例 2：财务工单流转测试 ===")
-        # print("=" * 60)
-        # result_2 = app.invoke(input_state_2)
-        # print(f"\n[工单处理完毕]:\n  -> 分配团队: {result_2['assigned_team']}\n  -> 答复文案: {result_2['resolved_message']}")
+        print("\n" + "=" * 60)
+        print("=== 测试案例 2：财务工单流转测试 ===")
+        print("=" * 60)
+        result_2 = app.invoke(input_state_2)
+        print(
+            f"\n[工单处理完毕]:\n  -> 分配团队: {result_2['assigned_team']}\n  -> 答复文案: {result_2['resolved_message']}"
+        )
 
     except ImportError:
         print(

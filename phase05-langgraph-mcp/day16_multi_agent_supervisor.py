@@ -21,9 +21,15 @@ DAY 16 实战源码：多 Agent 协作系统 —— Supervisor 主管派单模�
 ==============================================================================
 """
 
+import os
+import sys
 from typing import Literal, TypedDict
 
 from langgraph.types import Command
+
+# 引入项目根目录的大模型配置中心
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config import DEFAULT_MODEL, get_openai_client
 
 # ==============================================================================
 # 1. 多智能体协作状态契约 (MultiAgentState Schema)
@@ -79,34 +85,48 @@ def supervisor_node(state: MultiAgentState) -> dict:
 
 def researcher_agent_node(state: MultiAgentState) -> dict:
     """
-    【子智能体 1：技术调研专家 (Researcher)】
-    专注针对任务目标检索行业最佳实践与开源方案。
+    【子智能体 1：真实大模型驱动的技术调研专家 (Researcher)】
+    专注针对任务目标调用大模型检索行业最佳实践与开源方案。
     """
     print(
-        f"[Researcher 调研员] 正在针对任务「{state['task_goal']}」检索最新业界方案..."
+        f"[Researcher 调研员] 正在调用大模型 [{DEFAULT_MODEL}] 针对任务「{state['task_goal']}」生成技术调研方案..."
     )
-    notes = (
-        "技术方案调研备忘录：\n"
-        "1. 数据传输推荐采用 SSE (Server-Sent Events) 协议进行实时轻量级流式推送；\n"
-        "2. 前端可采用原生 EventSource 或 fetch-event-source 监听事件，实现动态 Generative UI 渐进渲染。"
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "你是一名资深 AI 架构调研专家。请针对用户的任务目标，列出 2 条最核心的技术选型与落地要点（简明扼要，100字以内）。",
+            },
+            {"role": "user", "content": state["task_goal"]},
+        ],
     )
+    notes = resp.choices[0].message.content or ""
     return {"research_notes": notes}
 
 
 def coder_agent_node(state: MultiAgentState) -> dict:
     """
-    【子智能体 2：代码工程专家 (Coder)】
-    专注根据调研员整理的要点，编写健壮、可落地的核心代码。
+    【子智能体 2：真实大模型驱动的代码工程专家 (Coder)】
+    专注根据任务目标与调研要点，调用大模型编写健壮、可落地的核心代码。
     """
-    print("[Coder 工程师] 正在基于调研专家的备忘录编写客户端消费逻辑...")
-    code = (
-        "// 客户端消费 SSE 核心逻辑代码\n"
-        "const sse = new EventSource('/api/agent/stream');\n"
-        "sse.onmessage = (event) => {\n"
-        "    const payload = JSON.parse(event.data);\n"
-        "    renderDynamicWidget(payload.ui_type, payload.data);\n"
-        "};"
+    print(f"[Coder 工程师] 正在调用大模型 [{DEFAULT_MODEL}] 编写核心客户端消费代码...")
+    client = get_openai_client()
+    resp = client.chat.completions.create(
+        model=DEFAULT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "你是一名全栈工程师。请根据目标和调研结论，写出一段简短精炼的前端 EventSource 消费 SSE 渲染 Generative UI 的核心 TypeScript 代码片段（仅输出代码与简短注释）。",
+            },
+            {
+                "role": "user",
+                "content": f"任务目标：{state['task_goal']}\n已有调研笔记：{state.get('research_notes', '使用 SSE 流式推送')}",
+            },
+        ],
     )
+    code = resp.choices[0].message.content or ""
     return {"code_artifact": code}
 
 

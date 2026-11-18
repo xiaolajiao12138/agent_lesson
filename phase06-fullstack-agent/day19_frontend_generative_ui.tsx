@@ -29,9 +29,11 @@ import React, { useState, useEffect, useRef } from 'react';
  * 对应后端 generative_ui 事件中的 props 字典
  */
 interface MetricCardProps {
-  title: string;             // 卡片标题，如 '2026 新能源出海核心态势简报'
-  penetration_rate: string;  // 产业渗透率指标
-  export_growth: string;     // 出口增长率
+  title: string;             // 卡片标题（由大模型根据提问主题动态生成）
+  metric1_label?: string;    // 指标1标题（由大模型根据提问主题动态命名，如 '岗位需求涨幅'）
+  penetration_rate: string;  // 指标1数值
+  metric2_label?: string;    // 指标2标题（由大模型根据提问主题动态命名，如 '平均薪资溢价'）
+  export_growth: string;     // 指标2数值
   risk_warning: string;      // 关键风险警示提示
   tags: string[];            // 业务分类标签数组
 }
@@ -56,12 +58,14 @@ interface ToolEvent {
 // ==============================================================================
 // 2. 动态生成的 UI 卡片组件 (Generative UI Component)
 // ==============================================================================
-// 这不是静态死代码，而是后端 Agent 根据检索到的新能源数据，在运行时动态决定渲染的高级交互组件！
+// 这不是静态死代码，而是后端 Agent 根据任意主题数据，在运行时动态决定渲染的高级交互组件！
 // 它自带独立的 useState 状态，用户可以在卡片上直接点击“加入大盘自选”或“已订阅”。
 
 export const MetricDashboardCard: React.FC<MetricCardProps> = ({
   title,
+  metric1_label = '核心指标 1',
   penetration_rate,
+  metric2_label = '核心指标 2',
   export_growth,
   risk_warning,
   tags,
@@ -82,14 +86,14 @@ export const MetricDashboardCard: React.FC<MetricCardProps> = ({
         </span>
       </div>
 
-      {/* 核心指标栅格：将原本生硬的数据用现代仪表盘视觉呈现 */}
+      {/* 核心指标栅格：指标名称和数值全部由大模型根据你提问的主题动态生成 */}
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-2xs">
-          <div className="text-xs text-gray-500 mb-1">产业渗透率</div>
+          <div className="text-xs text-gray-500 mb-1">{metric1_label}</div>
           <div className="text-2xl font-black font-mono text-indigo-600">{penetration_rate}</div>
         </div>
         <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-2xs">
-          <div className="text-xs text-gray-500 mb-1">海外出口同比</div>
+          <div className="text-xs text-gray-500 mb-1">{metric2_label}</div>
           <div className="text-2xl font-black font-mono text-emerald-600">{export_growth}</div>
         </div>
       </div>
@@ -157,7 +161,8 @@ export const AgentStreamingTerminal: React.FC = () => {
     setStreamedText('');
 
     // 2. 建立原生浏览器 EventSource 长连接（跨端口连接后端 FastAPI）
-    const url = `http://127.0.0.1:8000/api/agent/stream?prompt=${encodeURIComponent(userPrompt)}`;
+    // Day 19 服务使用独立端口，避免连到其他课程或旧版的 8000 服务。
+    const url = `http://127.0.0.1:8019/api/agent/stream?prompt=${encodeURIComponent(userPrompt)}`;
     const sse = new EventSource(url);
     eventSourceRef.current = sse;
 
@@ -269,11 +274,11 @@ export const AgentStreamingTerminal: React.FC = () => {
         </button>
       </div>
 
-      {/* 区域 1：思考链折叠展示 (Chain-of-Thought) */}
+      {/* 区域 1：后端主动发送的任务阶段日志 */}
       {thoughts.length > 0 && (
         <div className="mb-4 p-4 rounded-xl bg-gray-50 border border-gray-200/80 text-xs">
           <div className="font-bold text-gray-700 mb-2 flex items-center gap-1.5">
-            <span>[思考链]</span> Agent 内部推理决策推导过程：
+            <span>[执行进度]</span> Agent 当前处理阶段：
           </div>
           <div className="space-y-1 font-mono text-gray-600">
             {thoughts.map((th, i) => (
