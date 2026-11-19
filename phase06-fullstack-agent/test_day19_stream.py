@@ -1,21 +1,19 @@
-"""Day 19 / 23｜验证天气输入不会误触发报告生成。"""
-
-from fastapi.testclient import TestClient
+"""Day 19 / 23｜验证企业级 5 大业务工具 -> 4 大万能前端模板 (UI_TOOL_MAP) 的归一化映射。"""
 
 import day19_backend_sse_stream as backend
 
 
-def test_weather_request_does_not_generate_industry_report(monkeypatch):
-    class UnexpectedModel:
-        @property
-        def chat(self):
-            raise AssertionError("没有天气工具时不应调用报告模型")
+def test_five_tools_map_to_four_universal_templates():
+    """验证行业指标与天气工具共用 UniversalMetricCard，其余工具映射至对应万能模板"""
+    # 1. 行业指标 + 2. 天气工具 -> 共用模板 1：UniversalMetricCard
+    assert backend.UI_TOOL_MAP["render_metric_dashboard"]["component_type"] == "UniversalMetricCard"
+    assert backend.UI_TOOL_MAP["get_weather"]["component_type"] == "UniversalMetricCard"
 
-    monkeypatch.setattr(backend, "async_client", UnexpectedModel())
-    with TestClient(backend.app) as client:
-        response = client.get("/api/agent/stream", params={"prompt": "今天深圳天气"})
-    assert response.status_code == 200
-    assert "尚未接入实时天气数据" in response.text
-    assert "event: generative_ui" not in response.text
-    assert "event: tool_call" not in response.text
-    assert "event: done" in response.text
+    # 3. 翻译工具 -> 映射模板 2：UniversalCompareCard
+    assert backend.UI_TOOL_MAP["translate_text"]["component_type"] == "UniversalCompareCard"
+
+    # 4. 表格工具 -> 映射模板 3：UniversalTableCard
+    assert backend.UI_TOOL_MAP["render_data_table"]["component_type"] == "UniversalTableCard"
+
+    # 5. 审批工具 -> 映射模板 4：UniversalConfirmCard
+    assert backend.UI_TOOL_MAP["request_action_approval"]["component_type"] == "UniversalConfirmCard"

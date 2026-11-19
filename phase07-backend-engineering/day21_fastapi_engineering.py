@@ -23,12 +23,10 @@ import os
 import sys
 import time
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 # 引入项目根目录的大模型配置中心
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from config import DEFAULT_MODEL, get_async_openai_client
-
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -38,15 +36,15 @@ from fastapi import (
     File,
     Form,
     Header,
-    HTTPException,
     Path,
     Query,
     Request,
     UploadFile,
 )
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+
+from config import DEFAULT_MODEL, get_async_openai_client
 
 # ==============================================================================
 # 0. 企业级统一响应外壳（对标前端 axios 拦截器最喜欢的 { code, msg, data }）
@@ -65,7 +63,7 @@ class ApiResponse(BaseModel, Generic[T]):
 
     code: int = Field(default=0, description="业务状态码：0成功，非0失败")
     msg: str = Field(default="success", description="状态说明信息")
-    data: Optional[T] = Field(default=None, description="响应数据载体")
+    data: T | None = Field(default=None, description="响应数据载体")
 
 
 # ==============================================================================
@@ -159,8 +157,8 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 # 3.1 普通 return 依赖：用于鉴权、提取当前登录用户
 # 注意这里的 Header(...)：Python 变量名写 x_token，FastAPI 会自动去读请求头里的 "X-Token"！
 async def get_current_user(
-    x_token: str = Header(default="dev-token-001", description="用户鉴权 Token")
-) -> Dict[str, Any]:
+    x_token: str = Header(default="dev-token-001", description="用户鉴权 Token"),
+) -> dict[str, Any]:
     """
     每次请求进来时自动检查请求头 X-Token。
     如果传了非法 token，直接抛出我们上面定义的 AgentBizError！
@@ -203,7 +201,7 @@ class ChatRequest(BaseModel):
     model_name: str = Field(default="gpt-6.1-sol", description="指定调用的大模型")
 
 
-@chat_router.post("/{session_id}/messages", response_model=ApiResponse[Dict[str, Any]])
+@chat_router.post("/{session_id}/messages", response_model=ApiResponse[dict[str, Any]])
 async def send_message(
     request: Request,
     # ① Path 路径参数：从 URL /api/v1/sessions/{session_id}/messages 中提取
@@ -216,8 +214,8 @@ async def send_message(
     # ④ Header 请求头参数：从 HTTP Headers 中提取 X-Client-Version
     x_client_version: str = Header(default="web-1.0", description="前端客户端版本号"),
     # ⑤ Depends 依赖注入：自动执行鉴权 + 自动开关数据库会话
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: Dict[str, Any] = Depends(get_db_session),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: dict[str, Any] = Depends(get_db_session),
 ):
     """
     一个接口集齐 Path + Query + Body + Header + Depends 五大能力！
@@ -234,7 +232,10 @@ async def send_message(
     llm_resp = await llm_client.chat.completions.create(
         model=target_model,
         messages=[
-            {"role": "system", "content": "你是一个简明扼要的企业 AI 助手，请用一句话回答用户问题。"},
+            {
+                "role": "system",
+                "content": "你是一个简明扼要的企业 AI 助手，请用一句话回答用户问题。",
+            },
             {"role": "user", "content": payload.message},
         ],
     )
@@ -261,7 +262,7 @@ async def quick_rename_session(
     # ⚠️ 关键对比：
     # - 如果写 new_title: str = Query(...) -> 从网址 ?new_title=xxx 取
     # - 如果写 new_title: str = Body(..., embed=True) -> 从 JSON {"new_title": "xxx"} 取！
-    new_title: str = Body(..., embed=True, min_length=2, description="新会话标题")
+    new_title: str = Body(..., embed=True, min_length=2, description="新会话标题"),
 ):
     return ApiResponse(data={"renamed_to": new_title})
 
@@ -282,7 +283,7 @@ async def background_parse_and_embed_doc(doc_id: str, filename: str, store: dict
     print(f"  ⚙️ [BackgroundTasks 后台任务完成] doc_id={doc_id}, 状态={store[doc_id]}")
 
 
-@kb_router.post("/upload", response_model=ApiResponse[Dict[str, str]])
+@kb_router.post("/upload", response_model=ApiResponse[dict[str, str]])
 async def upload_knowledge_doc(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -376,7 +377,13 @@ def run_self_test():
         resp4 = client.post(
             "/api/v1/kb/upload",
             data={"kb_name": "企业财务制度库"},
-            files={"file": ("差旅报销规范2026.txt", "报销标准：一线城市住宿上限500元/晚".encode("utf-8"), "text/plain")},
+            files={
+                "file": (
+                    "差旅报销规范2026.txt",
+                    "报销标准：一线城市住宿上限500元/晚".encode(),
+                    "text/plain",
+                )
+            },
         )
         print(f"  HTTP 状态码: {resp4.status_code}")
         print(f"  接口秒回结果: {resp4.json()}")

@@ -31,7 +31,6 @@ DAY 20 实战源码：Python 异步编程详解（asyncio 全家桶 + 异步调�
 
 import asyncio
 import os
-import sys
 import time
 
 # ==============================================================================
@@ -168,7 +167,7 @@ async def demo_gather_vs_taskgroup():
             t1 = tg.create_task(fake_llm_call("写数据库", 1.0))
             t2 = tg.create_task(fake_llm_call("发邮件", 0.2, should_fail=True))
             t3 = tg.create_task(fake_llm_call("写日志", 1.0))
-        # 只有全部成功才会走到这里
+
         print(f"    结果：{t1.result()}, {t2.result()}, {t3.result()}")
     except* RuntimeError as eg:
         # except* 是 3.11 新语法，专门用来捕获 ExceptionGroup 里的某类异常
@@ -365,7 +364,9 @@ async def demo_httpx():
         try:
             responses = await asyncio.gather(*(client.get(u) for u in urls))
             codes = [r.status_code for r in responses]
-            print(f"  3 个各需 1 秒的请求，并发耗时 {time.perf_counter() - start:.2f}s，状态码 {codes}")
+            print(
+                f"  3 个各需 1 秒的请求，并发耗时 {time.perf_counter() - start:.2f}s，状态码 {codes}"
+            )
         except httpx.HTTPError as err:
             # 网络不通时不影响学习，看懂写法即可
             print(f"  网络请求失败（不影响学习，看懂写法即可）：{type(err).__name__}")
@@ -395,9 +396,7 @@ async def demo_async_openai():
         or "sk-7c29a50f89c958db7015b7c49984767782d86dcc5844b3e4e767a8e22b655345"
     )
     base_url = (
-        os.getenv("base_url")
-        or os.getenv("OPENAI_BASE_URL")
-        or "https://sub2api.starysp.top/v1"
+        os.getenv("base_url") or os.getenv("OPENAI_BASE_URL") or "https://sub2api.starysp.top/v1"
     )
     model = os.getenv("mode") or os.getenv("OPENAI_MODEL_NAME") or "gpt-6.1-sol"
 
