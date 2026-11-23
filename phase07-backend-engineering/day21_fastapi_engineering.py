@@ -56,7 +56,9 @@ from config import DEFAULT_MODEL, get_async_openai_client
 # 数据库会真实落盘为同目录下的 day21_agent.db 文件（重启服务数据也不会丢！）
 # 💡 以后迁移到生产环境 PostgreSQL / MySQL，只需修改下面这一行 DATABASE_URL 即可，业务代码 0 改动！
 
-DB_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "day21_agent.db")
+DB_FILE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "day21_agent.db"
+)
 DATABASE_URL = f"sqlite:///{DB_FILE_PATH}"
 
 
@@ -210,8 +212,15 @@ async def get_current_user(
     如果传了非法 token，直接抛出我们上面定义的 AgentBizError！
     """
     if x_token == "invalid":
-        raise AgentBizError(code=40101, msg="登录凭证无效或已过期，请重新登录", status_code=401)
-    return {"user_id": "u_888", "username": "小陈", "role": "ai_engineer", "token": x_token}
+        raise AgentBizError(
+            code=40101, msg="登录凭证无效或已过期，请重新登录", status_code=401
+        )
+    return {
+        "user_id": "u_888",
+        "username": "小陈",
+        "role": "ai_engineer",
+        "token": x_token,
+    }
 
 
 # 3.2 带 yield 的真实数据库依赖：进入接口前打开真实 SQLAlchemy Session，离开后自动回滚/关闭
@@ -305,7 +314,9 @@ async def send_message(
 
     # 3. 顺便从真实数据库统计该会话目前累计存入了多少条历史记录
     total_count = db.scalar(
-        select(func.count(ChatMessageRecord.id)).where(ChatMessageRecord.session_id == session_id)
+        select(func.count(ChatMessageRecord.id)).where(
+            ChatMessageRecord.session_id == session_id
+        )
     )
 
     return ApiResponse(
@@ -325,7 +336,9 @@ async def send_message(
     )
 
 
-@chat_router.get("/{session_id}/messages", response_model=ApiResponse[list[dict[str, Any]]])
+@chat_router.get(
+    "/{session_id}/messages", response_model=ApiResponse[list[dict[str, Any]]]
+)
 async def list_session_messages(
     session_id: str = Path(..., min_length=3, description="要查询历史记录的会话 ID"),
     current_user: dict[str, Any] = Depends(get_current_user),
@@ -463,7 +476,9 @@ def run_self_test():
         print(f"  返回结果: {resp1.json()}")
 
         # 1.5 测试从真实 SQLite 数据库读取刚才写入的对话记录
-        print("\n【测试 1.5】调用 GET 接口，从真实 SQLite 数据库 (day21_agent.db) 查出历史记录：")
+        print(
+            "\n【测试 1.5】调用 GET 接口，从真实 SQLite 数据库 (day21_agent.db) 查出历史记录："
+        )
         resp_hist = client.get(
             "/api/v1/sessions/sess_2026/messages",
             headers={"X-Token": "my-secret-token"},
@@ -482,7 +497,9 @@ def run_self_test():
         print(f"  统一错误格式: {resp2.json()}")
 
         # 3. 测试美化后的 422 参数校验拦截器
-        print("\n【测试 3】故意传错参数（top_k=999 超出 le=10），查看中文化的 422 报错：")
+        print(
+            "\n【测试 3】故意传错参数（top_k=999 超出 le=10），查看中文化的 422 报错："
+        )
         resp3 = client.post(
             "/api/v1/sessions/sess_2026/messages?top_k=999",
             json={"message": ""},  # 同时违反 min_length=1

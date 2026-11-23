@@ -19,14 +19,12 @@ DAY 22 实战源码：企业级强类型配置中心与链路追踪日志系统
 """
 
 import asyncio
-from contextvars import ContextVar
-from functools import lru_cache
-import io
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional
 import uuid
+from contextvars import ContextVar
+from functools import lru_cache
 
 # 适配 Windows 控制台 UTF-8 输出，防止 Emoji 字符导致 gbk 编码报错
 if sys.platform == "win32":
@@ -37,8 +35,7 @@ if sys.platform == "win32":
         pass
 
 # 引入 FastAPI 核心组件
-from fastapi import FastAPI, Header, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -54,6 +51,7 @@ except ImportError:
 # 1. 对比演示：os.getenv() 的典型隐患 vs pydantic-settings
 # ==============================================================================
 
+
 def demo_os_getenv_pitfalls():
     """
     演示传统 os.getenv 极其容易引发的逻辑 BUG
@@ -68,41 +66,59 @@ def demo_os_getenv_pitfalls():
 
     # ❌ 经典踩坑：在 Python 中，非空字符串 bool("False") 的结果是 True！
     is_debug_bad = bool(os.getenv("MOCK_DEBUG", "True"))
-    print(f"  ❌ 错误做法：bool(os.getenv('MOCK_DEBUG')) -> 得到结果: {is_debug_bad} (期望为 False，却得到了 True！)")
+    print(
+        f"  ❌ 错误做法：bool(os.getenv('MOCK_DEBUG')) -> 得到结果: {is_debug_bad} (期望为 False，却得到了 True！)"
+    )
 
     # ❌ 经典踩坑：必须手动做大量类型强转，如果环境变量拼错成了非数字字符串，启动直接抛 ValueError 崩掉
     port_bad = int(os.getenv("MOCK_PORT", "8000"))
-    print(f"  ⚠️ 手动转换: int(os.getenv('MOCK_PORT')) -> {port_bad} (缺乏范围检查，比如传了 -1 无法拦截)")
+    print(
+        f"  ⚠️ 手动转换: int(os.getenv('MOCK_PORT')) -> {port_bad} (缺乏范围检查，比如传了 -1 无法拦截)"
+    )
 
 
 # ==============================================================================
 # 2. pydantic-settings 现代强类型配置中心（标准最佳实践）
 # ==============================================================================
 
+
 class AppSettings(BaseSettings):
     """
     系统全局强类型配置中心（从 .env 和系统环境变量中自动加载）
     """
+
     # 1. 必填字段与服务基础配置
     app_name: str = Field(default="MyAgentPlatform", description="应用服务名称")
-    app_env: str = Field(default="development", description="运行环境: development / staging / production")
-    server_port: int = Field(default=8000, ge=1, le=65535, description="端口范围 1~65535")
-    is_debug: bool = Field(default=False, description="调试模式开关（自动识别 'true'/'false'/'1'/'0'）")
+    app_env: str = Field(
+        default="development",
+        description="运行环境: development / staging / production",
+    )
+    server_port: int = Field(
+        default=8000, ge=1, le=65535, description="端口范围 1~65535"
+    )
+    is_debug: bool = Field(
+        default=False, description="调试模式开关（自动识别 'true'/'false'/'1'/'0'）"
+    )
 
     # 2. 大模型与第三方凭据配置
-    api_key: str = Field(default="sk-test-mock-key-123456", description="大模型 API Key（必填且须以 sk- 开头）")
-    base_url: str = Field(default="https://sub2api.starysp.top/v1", description="接口网关地址")
+    api_key: str = Field(
+        default="sk-test-mock-key-123456",
+        description="大模型 API Key（必填且须以 sk- 开头）",
+    )
+    base_url: str = Field(
+        default="https://sub2api.starysp.top/v1", description="接口网关地址"
+    )
     model_name: str = Field(default="gpt-6.1-sol", description="默认大模型名称")
 
     # 3. 复杂类型：自动将逗号分隔或 JSON 格式解析为 Python List
-    allowed_origins: List[str] = Field(default=["*"], description="允许的跨域域名列表")
+    allowed_origins: list[str] = Field(default=["*"], description="允许的跨域域名列表")
 
     # 4. 配置映射规则
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,  # 忽略大小写（系统环境变量写 API_KEY 也能读取到 api_key）
-        extra="ignore",        # 忽略多余的未知变量
+        extra="ignore",  # 忽略多余的未知变量
     )
 
     # 5. 自定义高级校验器：校验 API Key 安全规则
@@ -145,8 +161,8 @@ def setup_modern_logging():
         # 从 contextvars 提取当前请求的 ID
         record["extra"]["req_id"] = request_id_ctx.get()
 
-    # 将 patcher 安装到全局 logger
-    configured_logger = logger.patch(inject_request_id)
+    # 直接给全局 logger 永久装上补丁，全项目任意文件 from loguru import logger 都能直接用
+    logger.configure(patcher=inject_request_id)
 
     # 3. 添加控制台彩色输出处理器
     # 格式模板中加入 <magenta>[{extra[req_id]}]</magenta>，使每行日志都有独特的粉色追踪标识！
@@ -158,7 +174,7 @@ def setup_modern_logging():
         "<level>{message}</level>"
     )
 
-    configured_logger.add(
+    logger.add(
         sys.stdout,
         format=log_format,
         level="DEBUG",
@@ -168,22 +184,20 @@ def setup_modern_logging():
     # 4. 可选：同时写入本地持久化文件（演示开箱即用的自动按天轮转与压缩存储）
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
     os.makedirs(log_dir, exist_ok=True)
-    configured_logger.add(
+    logger.add(
         os.path.join(log_dir, "agent_app.log"),
         format=log_format,
         level="INFO",
-        rotation="10 MB",     # 文件超过 10MB 自动新建一个
-        retention="7 days",    # 只保留最近 7 天的日志，过期自动删除
-        compression="zip",     # 旧日志自动打包压缩为 zip 省空间
+        rotation="10 MB",  # 文件超过 10MB 自动新建一个
+        retention="7 days",  # 只保留最近 7 天的日志，过期自动删除
+        compression="zip",  # 旧日志自动打包压缩为 zip 省空间
         encoding="utf-8",
-        enqueue=True,          # 开启异步队列无锁写入，绝不阻塞 Web 吞吐
+        enqueue=True,  # 开启异步队列无锁写入，绝不阻塞 Web 吞吐
     )
 
-    return configured_logger
 
-
-# 初始化配置全局 logger
-app_logger = setup_modern_logging()
+# 初始化全局 logger（之后全项目统一直接用 logger.info / debug / error 即可）
+setup_modern_logging()
 
 
 # ==============================================================================
@@ -208,7 +222,7 @@ async def trace_id_middleware(request: Request, call_next):
     # 将其绑定到当前协程的上下文环境
     token = request_id_ctx.set(trace_id)
 
-    app_logger.info(f"👉 HTTP 请求进入: {request.method} {request.url.path}")
+    logger.info(f"👉 HTTP 请求进入: {request.method} {request.url.path}")
     start_time = time.perf_counter()
 
     try:
@@ -216,10 +230,12 @@ async def trace_id_middleware(request: Request, call_next):
         process_time_ms = (time.perf_counter() - start_time) * 1000
         # 将请求 ID 注入回响应头，前端可直接通过 response.headers.get('x-request-id') 拿到
         response.headers["X-Request-ID"] = trace_id
-        app_logger.info(f"👈 HTTP 请求完成: 状态码={response.status_code}, 耗时={process_time_ms:.2f}ms")
+        logger.info(
+            f"👈 HTTP 请求完成: 状态码={response.status_code}, 耗时={process_time_ms:.2f}ms"
+        )
         return response
     except Exception as exc:
-        app_logger.exception(f"💥 请求处理崩溃: {exc}")
+        logger.exception(f"💥 请求处理崩溃: {exc}")
         raise
     finally:
         # 重置上下文，养成内存安全的好习惯
@@ -228,18 +244,18 @@ async def trace_id_middleware(request: Request, call_next):
 
 # 模拟底层业务层函数（深层调用），证明完全不需要手动传递 trace_id，日志也能自动带上！
 async def deep_agent_service(query: str):
-    app_logger.debug("正在解析用户意图与 Prompt 模板...")
+    logger.debug("正在解析用户意图与 Prompt 模板...")
     await asyncio.sleep(0.05)  # 模拟网络 IO
-    app_logger.info(f"调用工具链完成，输入问题: '{query}'")
+    logger.info(f"调用工具链完成，输入问题: '{query}'")
     return f"针对 '{query}' 的智能分析回答"
 
 
 @app.get("/api/v1/agent/query")
 async def agent_query(q: str = "如何搭建智能体？"):
-    app_logger.info(f"API Controller 接收到用户参数: q={q}")
+    logger.info(f"API Controller 接收到用户参数: q={q}")
     # 调用深层业务函数
     result = await deep_agent_service(q)
-    app_logger.info("业务逻辑处理完毕，准备返回响应")
+    logger.info("业务逻辑处理完毕，准备返回响应")
     return {"code": 0, "msg": "success", "data": {"answer": result}}
 
 
@@ -247,7 +263,7 @@ async def agent_query(q: str = "如何搭建智能体？"):
 async def inspect_config():
     """查看当前加载生效的强类型配置"""
     settings = get_settings()
-    app_logger.info("正在调阅全局系统配置")
+    logger.info("正在调阅全局系统配置")
     return {
         "app_name": settings.app_name,
         "app_env": settings.app_env,
@@ -262,6 +278,7 @@ async def inspect_config():
 # 5. 全流程本地自动化自检演示（并发验证）
 # ==============================================================================
 
+
 def run_self_test():
     """
     一键运行全套测试：演示配置强类型校验与 3 个并发请求下，日志自动穿透携带 [req_xxx] 的效果
@@ -272,7 +289,9 @@ def run_self_test():
     print("【对比 2】pydantic-settings 强类型解析与单例验证")
     print("=" * 75)
     settings = get_settings()
-    print(f"  ✅ 成功获取强类型配置单例: {settings.app_name} (Port: {settings.server_port}, Debug: {settings.is_debug})")
+    print(
+        f"  ✅ 成功获取强类型配置单例: {settings.app_name} (Port: {settings.server_port}, Debug: {settings.is_debug})"
+    )
     print(f"  ✅ 目标模型: {settings.model_name}, 网关: {settings.base_url}")
 
     print("\n" + "=" * 75)
@@ -284,7 +303,9 @@ def run_self_test():
 
     # 模拟用户 A 发起提问
     print("\n▶ 模拟客户端 A 发送请求（传入自定义 X-Request-ID: user-A-001）：")
-    resp_a = client.get("/api/v1/agent/query?q=什么是LangGraph", headers={"X-Request-ID": "user-A-001"})
+    resp_a = client.get(
+        "/api/v1/agent/query?q=什么是LangGraph", headers={"X-Request-ID": "user-A-001"}
+    )
     print(f"  客户端 A 收到响应头 X-Request-ID: {resp_a.headers.get('x-request-id')}")
 
     # 模拟用户 B 发起提问（不传请求头，由服务端自动分配唯一 UUID）
@@ -294,14 +315,17 @@ def run_self_test():
 
     print("\n🎉 观察上方控制台日志输出：")
     print("👉 每一条日志都清晰带着各自的 [user-A-001] 或 [req_xxxxxxxx] 标签！")
-    print("👉 无论代码调用嵌套了多少层（Controller -> Service -> Tool），全流程自动绑定，彻底消灭并发排错盲区！")
+    print(
+        "👉 无论代码调用嵌套了多少层（Controller -> Service -> Tool），全流程自动绑定，彻底消灭并发排错盲区！"
+    )
 
 
 if __name__ == "__main__":
     if "--serve" in sys.argv:
         import uvicorn
+
         settings = get_settings()
-        app_logger.info(f"🚀 启动生产级 Web 服务，监听端口: {settings.server_port}")
+        logger.info(f"🚀 启动生产级 Web 服务，监听端口: {settings.server_port}")
         uvicorn.run(app, host="127.0.0.1", port=settings.server_port)
     else:
         run_self_test()
