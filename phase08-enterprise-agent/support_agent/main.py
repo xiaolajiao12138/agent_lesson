@@ -72,7 +72,7 @@ def get_session(request: Request) -> Iterator[Session]:
 # 类型别名复用同一条依赖声明，实际 Session 仍由 get_session() 在请求期间创建和交出。
 
 Database = Annotated[Session, Depends(get_session)]
-Identity = Annotated[Actor, Depends(current_actor)]
+  = Annotated[Actor, Depends(current_actor)]
 Reviewer = Annotated[Actor, Depends(require_reviewer)]
 # Header 将参数 idempotency_key 对应到请求头 Idempotency-Key，长度和正则用于校验。
 IdempotencyKey = Annotated[str, Header(min_length=8, max_length=128, pattern=r"^[a-zA-Z0-9._-]+$")]

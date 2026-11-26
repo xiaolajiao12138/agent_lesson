@@ -33,13 +33,17 @@ def save_document(session: Session, tenant_id: str, source_id: str, payload: Doc
     fields = payload.model_dump()
     fields["keywords"] = json.dumps(payload.keywords, ensure_ascii=False)
     statement = conflict_insert(session, Document).values(
-        tenant_id=tenant_id, source_id=source_id, **fields,
+        tenant_id=tenant_id,
+        source_id=source_id,
+        **fields,
     )
-    session.execute(statement.on_conflict_do_update(
-        index_elements=["tenant_id", "source_id"],
-        # excluded[field] 指向新提交的值，fields 的键限定需要更新的业务列。
-        set_={field: statement.excluded[field] for field in fields},
-    ))
+    session.execute(
+        statement.on_conflict_do_update(
+            index_elements=["tenant_id", "source_id"],
+            # excluded[field] 指向新提交的值，fields 的键限定需要更新的业务列。
+            set_={field: statement.excluded[field] for field in fields},
+        )
+    )
 
 
 def remove_document(session: Session, tenant_id: str, source_id: str) -> None:
@@ -50,9 +54,12 @@ def remove_document(session: Session, tenant_id: str, source_id: str) -> None:
     相关的软删除通常更新 is_deleted 标记，所有检索也要明确排除已下架文档。
     物理删除移除当前表中的记录，数据库文件收缩、历史版本和备份回收由存储系统另行管理。
     """
-    session.execute(delete(Document).where(
-        Document.tenant_id == tenant_id, Document.source_id == source_id,
-    ))
+    session.execute(
+        delete(Document).where(
+            Document.tenant_id == tenant_id,
+            Document.source_id == source_id,
+        )
+    )
 
 
 def answer_question(session: Session, actor: Actor, question: str) -> KnowledgeAnswer:
@@ -68,9 +75,12 @@ def answer_question(session: Session, actor: Actor, question: str) -> KnowledgeA
     相关的 BM25 考虑词频等特征，向量检索利用嵌入相似度，Rerank 可对召回候选重新排序。
     这些检索方法都需要继续保留身份过滤及引用来源，本例采用便于回归测试的确定性基线。
     """
+    # 查询请求用户的公司，目前是有两个不同的公司，所以先查询是属于哪个公司的，目前没有查询数据库，只是添加sql语句准备查询
     query = select(Document).where(Document.tenant_id == actor.tenant_id)
     # 授权过滤先于计分进行，未获授权文档不进入候选集合。
+    # 如果是属于这两个公司里面的任意一家，那么就查询用户的身份权限，是用户还是管理员
     if actor.role == "customer":
+        # 如果是用户，那么就添加只能查看文档范围，只有tenant的知识库文档才能被用户看到
         query = query.where(Document.visibility == "tenant")
 
     normalized = question.casefold()
@@ -80,7 +90,10 @@ def answer_question(session: Session, actor: Actor, question: str) -> KnowledgeA
     # scalars 返回 Document 对象，逐篇统计不同关键词的命中数。
     for document in session.scalars(query):
         keywords = {keyword.casefold() for keyword in json.loads(document.keywords)}
+        ##查询用户提出的问题在知识库文档中的keywords关键字命中几次
         score = sum(keyword in normalized for keyword in keywords)
+        ##处理命中得分的文档，如果命中的得分大于初始值或者是大于上一轮的得分，那么就直接把之前的文档或者是空
+        # 文档替换为最高分的文档替换
         if score > best_score:
             best_score = score
             best_documents = [document]
@@ -89,7 +102,9 @@ def answer_question(session: Session, actor: Actor, question: str) -> KnowledgeA
 
     # 无命中或最高分并列时建议转人工；资料本身的准确性仍需在导入阶段维护。
     if len(best_documents) != 1:
-        return KnowledgeAnswer(route="transfer", message="未找到唯一适用的资料，可以创建工单转人工。")
+        return KnowledgeAnswer(
+            route="transfer", message="未找到唯一适用的资料，可以创建工单转人工。"
+        )
 
     source = best_documents[0]
     return KnowledgeAnswer(
