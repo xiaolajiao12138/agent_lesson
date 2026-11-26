@@ -1,43 +1,57 @@
+# 企业实战第 7 课｜依次准备 PostgreSQL、执行数据库迁移，再启动 API。
+# ${变量} 由 Compose 从当前环境或 .env 插值；:? 在缺少配置时提示错误。
 services:
+  # 数据库服务，容器内部可以通过服务名 db 访问它。
   db:
     image: postgres:16
     environment:
       POSTGRES_DB: support
       POSTGRES_USER: support
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    # 命名卷保留数据库文件，容器重新创建后仍可使用。
     volumes:
       - support_data:/var/lib/postgresql/data
+    # pg_isready 检查 PostgreSQL 是否接受连接；interval/timeout/retries 控制探测节奏。
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U support -d support"]
       interval: 3s
       timeout: 3s
       retries: 15
 
+  # 一次性迁移任务，成功退出后才满足 API 的启动依赖。
   migrate:
     build: .
+    # &database 定义 YAML 锚点，API 用 *database 复用这组数据库连接配置。
     environment: &database
       DATABASE_URL: postgresql+psycopg://support:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/support
+    # 覆盖 Dockerfile 的 CMD，执行版本迁移。
     command: ["python", "-m", "alembic", "upgrade", "head"]
     depends_on:
       db:
         condition: service_healthy
 
+  # API 使用与迁移任务相同的应用镜像，另行装配教学身份 JSON。
   api:
     build: .
     environment:
+      # << 是 YAML 合并键，展开上方锚点中的 DATABASE_URL。
       <<: *database
       AGENT_IDENTITIES_JSON: ${AGENT_IDENTITIES_JSON:?set AGENT_IDENTITIES_JSON}
+    # 顺序为宿主机地址:宿主机端口:容器端口，本课绑定本机回环地址。
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       migrate:
+        # 初次启动等待迁移正常退出；后续故障仍需健康探测和应用自身处理。
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready', timeout=3).close()"]
       interval: 10s
       timeout: 4s
       retries: 6
+    # restart 针对进程退出执行重启；健康检查变为 unhealthy 本身不会自动重启进程。
     restart: unless-stopped
 
+# 命名卷声明，docker compose down 默认保留它，删除卷的操作会影响持久化数据。
 volumes:
   support_data:

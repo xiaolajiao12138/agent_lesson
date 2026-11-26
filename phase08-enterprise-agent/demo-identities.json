@@ -1,6 +1,66 @@
 [
-  {"token": "training-blue-customer-000001", "user_id": "alice", "tenant_id": "blue", "role": "customer"},
-  {"token": "training-blue-customer-000002", "user_id": "bob", "tenant_id": "blue", "role": "customer"},
-  {"token": "training-blue-reviewer-000001", "user_id": "mei", "tenant_id": "blue", "role": "reviewer"},
-  {"token": "training-green-reviewer-000001", "user_id": "lin", "tenant_id": "green", "role": "reviewer"}
+  {
+    "token": "training-blue-customer-000001",
+    "user_id": "alice",
+    "tenant_id": "blue",
+    "role": "customer",
+    "_comment": [
+      "身份说明：蓝店 blue 的普通客户 alice。",
+      "POST /agent/answer：检索蓝店面向客户的知识文档（visibility=tenant）。",
+      "POST /tickets：创建属于 alice 的蓝店工单，同一次操作重试时复用 Idempotency-Key。",
+      "GET /tickets/{ticket_id}：查询蓝店中 owner_id=alice 的本人工单。",
+      "访问边界：bob 的工单、其他租户工单，以及 visibility=reviewer 的内部文档均超出当前权限范围。",
+      "审批工单、查看审计事件、上传更新或删除知识文档等接口要求 reviewer 角色。",
+      "这些文字用于阅读说明，实际授权由后端鉴权依赖和数据库查询条件执行。"
+    ]
+  },
+  {
+    "token": "training-blue-customer-000002",
+    "user_id": "bob",
+    "tenant_id": "blue",
+    "role": "customer",
+    "_comment": [
+      "身份说明：蓝店 blue 的普通客户 bob，与 alice 同租户、不同用户。",
+      "POST /agent/answer：检索蓝店面向客户的知识文档（visibility=tenant）。",
+      "POST /tickets：创建属于 bob 的蓝店工单，同一次操作重试时复用 Idempotency-Key。",
+      "GET /tickets/{ticket_id}：查询蓝店中 owner_id=bob 的本人工单。",
+      "访问边界：alice 的工单、其他租户工单，以及 visibility=reviewer 的内部文档均超出当前权限范围。",
+      "审批工单、查看审计事件、上传更新或删除知识文档等接口要求 reviewer 角色。",
+      "这些文字用于阅读说明，实际授权由后端鉴权依赖和数据库查询条件执行。"
+    ]
+  },
+  {
+    "token": "training-blue-reviewer-000001",
+    "user_id": "mei",
+    "tenant_id": "blue",
+    "role": "reviewer",
+    "_comment": [
+      "身份说明：蓝店 blue 的审批员 mei，角色为 reviewer。",
+      "POST /agent/answer：检索蓝店的 tenant 文档和 reviewer 内部文档。",
+      "POST /tickets：创建属于 mei 的蓝店工单。",
+      "GET /tickets/{ticket_id}：查询蓝店内各用户的工单，包括 alice、bob、mei 的工单。",
+      "POST /tickets/{ticket_id}/review：对蓝店待审工单提交 approved 或 rejected，仍需满足状态机规则。",
+      "GET /tickets/{ticket_id}/events：查看蓝店工单的审计事件。",
+      "PUT 或 DELETE /knowledge/{source_id}：新增更新或删除蓝店知识文档。",
+      "租户边界：审批员角色的权限范围仍受 tenant_id=blue 约束，green 资源超出权限范围。",
+      "这些文字用于阅读说明，实际授权由后端鉴权依赖和数据库查询条件执行。"
+    ]
+  },
+  {
+    "token": "training-green-reviewer-000001",
+    "user_id": "lin",
+    "tenant_id": "green",
+    "role": "reviewer",
+    "_comment": [
+      "身份说明：绿店 green 的审批员 lin，角色为 reviewer。",
+      "POST /agent/answer：检索绿店的 tenant 文档和 reviewer 内部文档。",
+      "POST /tickets：创建属于 lin 的绿店工单。",
+      "GET /tickets/{ticket_id}：查询绿店内各用户的工单。",
+      "POST /tickets/{ticket_id}/review：对绿店待审工单提交 approved 或 rejected，仍需满足状态机规则。",
+      "GET /tickets/{ticket_id}/events：查看绿店工单的审计事件。",
+      "PUT 或 DELETE /knowledge/{source_id}：新增更新或删除绿店知识文档。",
+      "租户边界：审批员角色的权限范围仍受 tenant_id=green 约束，alice、bob、mei 的蓝店工单及知识文档超出权限范围。",
+      "这些文字用于阅读说明，实际授权由后端鉴权依赖和数据库查询条件执行。"
+    ]
+  }
 ]

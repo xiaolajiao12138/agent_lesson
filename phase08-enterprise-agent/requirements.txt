@@ -1,6 +1,12 @@
+# 企业实战第 7 课｜运行依赖，pip install -r requirements.txt 会按这些版本安装。
+# == 锁定版本，便于课程环境复现；版本更新时应重新运行回归测试。
+# FastAPI 处理 HTTP 路由和依赖注入，Pydantic 校验接口数据。
 fastapi==0.162.0
 pydantic==2.14.2
+# SQLAlchemy 提供 ORM/事务/连接池，Alembic 管理数据库结构版本。
 SQLAlchemy==2.1.8
 alembic==1.14.1
+# psycopg 是 PostgreSQL 驱动，[binary] 选择带二进制组件的安装方式。
 psycopg[binary]==3.2.9
+# Uvicorn 是运行 FastAPI ASGI 应用的服务进程，入口见 README 中的 --factory 命令。
 uvicorn==0.54.0

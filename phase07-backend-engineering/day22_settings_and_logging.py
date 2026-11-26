@@ -93,9 +93,7 @@ class AppSettings(BaseSettings):
         default="development",
         description="运行环境: development / staging / production",
     )
-    server_port: int = Field(
-        default=8000, ge=1, le=65535, description="端口范围 1~65535"
-    )
+    server_port: int = Field(default=8000, ge=1, le=65535, description="端口范围 1~65535")
     is_debug: bool = Field(
         default=False, description="调试模式开关（自动识别 'true'/'false'/'1'/'0'）"
     )
@@ -105,9 +103,7 @@ class AppSettings(BaseSettings):
         default="sk-test-mock-key-123456",
         description="大模型 API Key（必填且须以 sk- 开头）",
     )
-    base_url: str = Field(
-        default="https://sub2api.starysp.top/v1", description="接口网关地址"
-    )
+    base_url: str = Field(default="https://sub2api.starysp.top/v1", description="接口网关地址")
     model_name: str = Field(default="gpt-6.1-sol", description="默认大模型名称")
 
     # 3. 复杂类型：自动将逗号分隔或 JSON 格式解析为 Python List

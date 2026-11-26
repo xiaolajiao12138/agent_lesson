@@ -1,0 +1,7 @@
+2026-11-24 09:59:56.860 | INFO     | __main__:<module>:120 - 8080
+2026-11-24 10:00:19.799 | INFO     | __main__:trace_id_middleware:94 - 请求完成，状态404
+2026-11-24 10:00:19.913 | INFO     | __main__:trace_id_middleware:94 - 请求完成，状态404
+2026-11-24 10:00:20.020 | INFO     | __main__:trace_id_middleware:94 - 请求完成，状态404
+2026-11-24 10:00:26.531 | INFO     | __main__:trace_id_middleware:94 - 请求完成，状态200
+2026-11-24 10:00:28.288 | INFO     | __main__:trace_id_middleware:94 - 请求完成，状态200
+2026-11-24 10:00:33.765 | INFO     | __main__:trace_id_middleware:94 - 请求完成，状态200

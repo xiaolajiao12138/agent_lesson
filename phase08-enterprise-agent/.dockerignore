@@ -1,6 +1,8 @@
+# Docker 构建上下文排除环境配置、数据库、缓存和本地解释器环境。
 .env*
 *.db*
 **/__pycache__
 .pytest_cache
 .venv
+# 身份通过 AGENT_IDENTITIES_JSON 提供给容器，教学 JSON 由启动者在宿主机加载。
 demo-identities.json

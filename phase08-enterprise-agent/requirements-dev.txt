@@ -1,3 +1,6 @@
+# 企业实战第 6 课｜测试环境同时安装运行依赖和以下测试依赖。
 -r requirements.txt
+# HTTPX 供 FastAPI TestClient 和真实 HTTP 评测使用。
 httpx==0.28.1
+# pytest 自动收集 test_ 开头函数，并解析 conftest.py 中的 fixture。
 pytest==8.3.5
