@@ -8,11 +8,11 @@ function loadScript(view: string, expose: string[], overrides: Record<string, un
   const source = readFileSync(new URL(`../src/views/${view}.vue`, import.meta.url), 'utf8');
   const script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)![1]!.replace(/^import .*;$/gm, '');
   const text = ts.transpileModule(`${script}\nreturn { ${expose.join(', ')} };`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
-  const bindings = { ref, computed, onMounted: () => {}, onUnmounted: () => {}, onBeforeUnmount: () => {}, nextTick: async () => {}, notify: () => {}, showError: () => {}, auth: { user: { id: 'u-customer' } }, DEMO_MODE: true, ...overrides };
+  const bindings = { ref, computed, onMounted: () => {}, onUnmounted: () => {}, onBeforeUnmount: () => {}, nextTick: async () => {}, notify: () => {}, showError: () => {}, auth: { user: { id: 'test-customer' } }, ...overrides };
   return new Function(...Object.keys(bindings), text)(...Object.values(bindings));
 }
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
-const ticket = (id: string) => ({ id, code: id, question: id, order_id: null, customer_id: 'u-customer', customer_name: '客户', status: 'pending_review', version: 1, events: [], created_at: new Date().toISOString() });
+const ticket = (id: string) => ({ id, code: id, question: id, order_id: null, customer_id: 'test-customer', customer_name: '客户', status: 'pending_review', version: 1, events: [], created_at: new Date().toISOString() });
 
 function memoryStorage() { const data = new Map<string, string>(); return { getItem: (key: string) => data.get(key) || null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key), data }; }
 
@@ -40,15 +40,15 @@ describe('页面异步请求边界', () => {
     expect(page.busy.value).toBe(false);
     vi.unstubAllGlobals();
   });
-  it('切换账号后，旧请求不得写入另一个用户的演示历史', async () => {
+  it('切换账号后，旧请求的回复不能写回原页面', async () => {
     const storage = memoryStorage(); vi.stubGlobal('localStorage', storage);
     const pending = deferred<unknown>();
     const auth = reactive({ user: { id: 'alice' } });
-    const page = loadScript('ChatView', ['send'], { auth, api: { answer: () => pending.promise } });
+    const page = loadScript('ChatView', ['send', 'messages'], { auth, api: { answer: () => pending.promise } });
     const sending = page.send('Alice 的问题');
     auth.user = { id: 'bob' };
     pending.resolve({ route: 'answer', message: 'Alice 的回复' }); await sending;
-    expect(storage.getItem('order-management:chat:bob')).toBeNull();
+    expect(page.messages.value.map((item: { role: string }) => item.role)).toEqual(['user']);
     vi.unstubAllGlobals();
   });
   it('较早的订单详情响应不能覆盖较晚选择的订单', async () => {

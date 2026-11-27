@@ -1,18 +1,89 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { login, DEMO_MODE } from '../stores/auth';
-import { showError } from '../stores/notice';
-import Icon from '../components/Icon.vue';
-const username = ref(''), password = ref(''), visible = ref(false), busy = ref(false);
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { login } from "../stores/auth";
+import { showError } from "../stores/notice";
+import Icon from "../components/Icon.vue";
+const username = ref(""),
+  password = ref(""),
+  visible = ref(false),
+  busy = ref(false);
 const router = useRouter();
-function fill(account: string) { username.value = account; password.value = '123456'; }
 async function submit() {
   if (busy.value) return;
   busy.value = true;
-  try { const user = await login({ username: username.value, password: password.value }); await router.push(user.role === 'admin' ? '/orders' : '/chat'); }
-  catch (error) { showError(error); }
-  finally { busy.value = false; }
+  try {
+    const user = await login({
+      username: username.value,
+      password: password.value,
+    });
+    await router.push(user.role === "admin" ? "/orders" : "/chat");
+  } catch (error) {
+    showError(error);
+  } finally {
+    busy.value = false;
+  }
 }
 </script>
-<template><div class="login-page"><section class="login-story"><div class="brand login-brand"><span class="brand-mark"><Icon name="box" :size="26" /></span><span>订单管理<small>ORDER WORKSPACE</small></span></div><div class="story-body"><span class="story-kicker"><span></span> 连接订单与服务的每一步</span><h1>有序管理，<br>从每一笔订单开始。</h1><p>订单查询、智能问答与人工审批，<br>在一个工作台里，完成每一次服务。</p><div class="story-visual"><div class="story-order"><div class="story-order-top"><span class="story-icon"><Icon name="box" :size="23" /></span><div><strong>订单服务流程</strong><small>每个环节，都清晰可见</small></div><span class="mini-label">WORKFLOW</span></div><div class="flow-step"><span class="step-circle done"><Icon name="check" :size="15" /></span><div><strong>提交订单咨询</strong><small>描述问题，关联对应订单</small></div><span class="flow-label">咨询</span></div><div class="flow-step"><span class="step-circle done"><Icon name="check" :size="15" /></span><div><strong>客服协同处理</strong><small>需要人工时，提交服务申请</small></div><span class="flow-label">转接</span></div><div class="flow-step last"><span class="step-circle current"><Icon name="clipboard" :size="16" /></span><div><strong>管理员审核反馈</strong><small>记录处理意见，跟进最终结果</small></div><span class="flow-label">审批</span></div></div><div class="floating-note"><span><Icon name="shield" :size="19" /></span><div><strong>按角色进入工作台</strong><small>客户服务 / 管理员审批</small></div></div></div></div><div class="story-footer">ORDER MANAGEMENT <span>让协作更顺畅，让服务更有序。</span></div></section><section class="login-form-area"><div class="login-form-wrap"><span class="login-chip"><Icon name="shield" :size="15" />{{ DEMO_MODE ? '前端界面演示' : '订单服务工作台' }}</span><h2>欢迎回来</h2><p class="login-subtitle">登录你的账号，开始今天的工作。</p><form class="login-form" @submit.prevent="submit"><label for="username">账号</label><div class="input-with-icon"><Icon name="user" :size="19" /><input id="username" v-model="username" name="username" autocomplete="username" placeholder="请输入账号" required maxlength="64" /></div><label for="password">密码</label><div class="input-with-icon"><Icon name="lock" :size="19" /><input id="password" v-model="password" name="password" :type="visible ? 'text' : 'password'" autocomplete="current-password" placeholder="请输入密码" required maxlength="128" /><button type="button" class="icon-button" :aria-label="visible ? '隐藏密码' : '显示密码'" @click="visible = !visible"><Icon name="eye" :size="18" /></button></div><div class="login-note"><Icon name="shield" :size="14" />登录后，根据账号角色展示对应功能</div><button type="submit" class="button primary login-submit" :disabled="busy"><span v-if="busy" class="spinner"></span>{{ busy ? '正在登录…' : '登录工作台' }}</button></form><div v-if="DEMO_MODE" class="demo-accounts"><div class="section-divider"><span>选择演示账号</span></div><div class="account-choices"><button @click="fill('customer')"><Icon name="user" :size="19" /><span><strong>客户账号</strong><small>问答 · 转人工</small></span></button><button @click="fill('admin')"><Icon name="clipboard" :size="19" /><span><strong>管理员账号</strong><small>订单 · 审批</small></span></button></div><p>账号 customer / admin，演示密码均为 123456</p></div><div v-else class="real-login-tip">请使用你在 Python 后端实现的登录账号。<br>此模式不会使用本地演示账号。</div></div><footer class="login-bottom">订单管理 · 让每一次服务有迹可循</footer></section></div></template>
+<template>
+  <div class="login-page">
+    <section class="login-form-area">
+      <div class="login-form-wrap">
+        <span class="login-chip"
+          ><Icon name="shield" :size="15" />订单服务工作台</span
+        >
+        <h2>欢迎回来</h2>
+        <p class="login-subtitle">登录你的账号，开始今天的工作。</p>
+        <form class="login-form" @submit.prevent="submit">
+          <label for="username">账号</label>
+          <div class="input-with-icon">
+            <Icon name="user" :size="19" /><input
+              id="username"
+              v-model="username"
+              name="username"
+              autocomplete="username"
+              placeholder="请输入账号"
+              required
+              maxlength="64"
+            />
+          </div>
+          <label for="password">密码</label>
+          <div class="input-with-icon">
+            <Icon name="lock" :size="19" /><input
+              id="password"
+              v-model="password"
+              name="password"
+              :type="visible ? 'text' : 'password'"
+              autocomplete="current-password"
+              placeholder="请输入密码"
+              required
+              maxlength="128"
+            /><button
+              type="button"
+              class="icon-button"
+              :aria-label="visible ? '隐藏密码' : '显示密码'"
+              @click="visible = !visible"
+            >
+              <Icon name="eye" :size="18" />
+            </button>
+          </div>
+          <div class="login-note">
+            <Icon name="shield" :size="14" />登录后，根据账号角色展示对应功能
+          </div>
+          <button
+            type="submit"
+            class="button primary login-submit"
+            :disabled="busy"
+          >
+            <span v-if="busy" class="spinner"></span
+            >{{ busy ? "正在登录…" : "登录工作台" }}
+          </button>
+        </form>
+        <div class="real-login-tip">
+          请使用你在 Python 后端创建的账号登录。
+        </div>
+      </div>
+      <footer class="login-bottom">订单管理 · 让每一次服务有迹可循</footer>
+    </section>
+  </div>
+</template>
