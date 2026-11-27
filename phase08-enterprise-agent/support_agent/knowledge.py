@@ -105,8 +105,9 @@ def answer_question(session: Session, actor: Actor, question: str) -> KnowledgeA
         return KnowledgeAnswer(
             route="transfer", message="未找到唯一适用的资料，可以创建工单转人工。"
         )
-
+    # 取第一条，也就是得分最高的第一条
     source = best_documents[0]
+    # 返回模板参数
     return KnowledgeAnswer(
         route="answer",
         message=source.body,

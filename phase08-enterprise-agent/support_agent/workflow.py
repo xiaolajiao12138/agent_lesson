@@ -85,11 +85,13 @@ def create_ticket(session: Session, actor: Actor, question: str, key: str) -> tu
         return visible_ticket(session, actor, ticket_id), True
 
     # 命中唯一键冲突：代表之前该幂等键已插入过工单，查出既有记录
-    existing = session.scalars(select(Ticket).where(
-        Ticket.tenant_id == actor.tenant_id,
-        Ticket.owner_id == actor.user_id,
-        Ticket.idempotency_key == key,
-    )).one()
+    existing = session.scalars(
+        select(Ticket).where(
+            Ticket.tenant_id == actor.tenant_id,
+            Ticket.owner_id == actor.user_id,
+            Ticket.idempotency_key == key,
+        )
+    ).one()
 
     # 校验入参是否一致，防止同一个幂等键被用于完全不同的两个问题
     if existing.question != question:
@@ -140,6 +142,12 @@ def ticket_history(session: Session, actor: Actor, ticket_id: str) -> list[Ticke
     session.scalars() 提供结果迭代，list() 将它物化为调用方可重复访问的列表。
     """
     ticket = visible_ticket(session, actor, ticket_id)
-    return list(session.scalars(select(TicketEvent).where(
-        TicketEvent.ticket_id == ticket.id,
-    ).order_by(TicketEvent.id)))
+    return list(
+        session.scalars(
+            select(TicketEvent)
+            .where(
+                TicketEvent.ticket_id == ticket.id,
+            )
+            .order_by(TicketEvent.id)
+        )
+    )

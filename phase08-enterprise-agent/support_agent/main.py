@@ -72,7 +72,7 @@ def get_session(request: Request) -> Iterator[Session]:
 # 类型别名复用同一条依赖声明，实际 Session 仍由 get_session() 在请求期间创建和交出。
 
 Database = Annotated[Session, Depends(get_session)]
-  = Annotated[Actor, Depends(current_actor)]
+Identity = Annotated[Actor, Depends(current_actor)]
 Reviewer = Annotated[Actor, Depends(require_reviewer)]
 # Header 将参数 idempotency_key 对应到请求头 Idempotency-Key，长度和正则用于校验。
 IdempotencyKey = Annotated[str, Header(min_length=8, max_length=128, pattern=r"^[a-zA-Z0-9._-]+$")]
@@ -243,6 +243,7 @@ def create_app(engine: Engine | None = None, identities: dict[str, Actor] | None
         responses={200: ...} 补充 OpenAPI 描述，实际状态仍由运行中的 response 设置。
         """
         with session.begin():
+            # 进入数据库首先调用创建订单方法
             ticket, created = create_ticket(session, actor, payload.question, idempotency_key)
             # 在事务提交前完成 Pydantic 校验与数据装配，避免提交后 ORM 属性过期触发隐式二次查询
             view = TicketView.model_validate(ticket)
